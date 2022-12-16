@@ -1,0 +1,2 @@
+# hashgen
+hash generator
