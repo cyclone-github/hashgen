@@ -1,6 +1,6 @@
 ### Hash generator benchmarks
  - Head to head comparison of different hash generators
- - All testing was performed using a copy of rockyou.txt (15,053,568 lines)
+ - All testing was performed hashing rockyou.txt (15,053,568 lines) to md5
  - All hashing stdout was written to /dev/null
  - Benchmarks are an average of 5x runtimes
 
