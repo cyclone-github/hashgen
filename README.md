@@ -16,6 +16,7 @@ Currently Supported functions:
 - crc32
 - md4
 - md5
+- ntlm
 - sha1
 - sha256
 - sha512
