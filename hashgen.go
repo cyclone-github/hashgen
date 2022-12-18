@@ -13,6 +13,7 @@ import (
     "encoding/hex"
     "unicode/utf16"
     "flag"
+    "time"
     "fmt"
     "log"
     "hash/crc32"
@@ -22,9 +23,10 @@ import (
 )
 // version history
 // v2022-12-15.2030; initial release
-// v2022-12-16.1800; fixed ntlm hash function
+// v2022-12-16.1800; fixed ntlm hash function, tweaked -w flag to be less restrictive, clean up code
+// v2022-12-17.2100; fixed typo in wordlist tag, added '-m plaintext' output mode (prints -w wordlist file to stdout)
 func versionFunc() {
-    funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMi0xMi0xNi4xODAwCg==")
+    funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMi0xMi0xNy4yMTAwCg==")
 }
 // help function
 func helpFunc() {
@@ -33,12 +35,13 @@ func helpFunc() {
             "\nExample Usage:"+
             "\n./hashgen -m md5 -w wordlist.txt"+
             "\n./hashgen -m md5 -w wordlist.txt > output.txt\n"+
-            "\nSupported functions:\nbase64decode\nbase64encode\nbcrypt\ncrc32\nmd4\nmd5\nntlm\nsha1\nsha256\nsha512\n"
+            "\nSupported functions:\nbase64decode\nbase64encode\nbcrypt\ncrc32\nmd4\nmd5\nntlm\nsha1\nsha256\nsha512\nplaintext\n"
     fmt.Println(str)
     os.Exit(0)
 } 
 // main function
 func main() {
+    start := time.Now() // start time
     m := flag.String("m", "", "Mode:")
     w := flag.String("w", "", "Path to wordlist:")
     version := flag.Bool("version", false, "Prints program version:")
@@ -56,14 +59,14 @@ func main() {
         helpFunc()
     }
 // run sanity checks on algo input (m)
-    if len(*m) < 3 {
+    if len(*m) < 1 {
         fmt.Println("--> missing '-m algo' <--\n")
         helpFunc()
         os.Exit(0)
     }
 // run sanity checks on wordlist input (w)
     if len(*w) < 1 {
-        fmt.Println("--> missing '-m wordlist' <--\n")
+        fmt.Println("--> missing '-w wordlist' <--\n")
         helpFunc()
         os.Exit(0)
     } 
@@ -81,7 +84,9 @@ defer file.Close()
     for scanner.Scan() {
         // call hash functions for line scanner
         line := scanner.Text()
-        if *m == "md5" {
+        if *m == "plaintext" {
+            funcPlaintext(line)
+        } else if *m == "md5" {
             funcMd5(line)
         } else if *m == "md4" {
             funcMd4(line)
@@ -101,14 +106,24 @@ defer file.Close()
             funcBase64Encode(line)
         } else if *m == "base64decode" {
             funcBase64Decode(line)
+        } else {
+            fmt.Println("Unknown mode: -m", *m)
+            helpFunc()
+            os.Exit(0)
         }
     }
     if err := scanner.Err(); err != nil {
         log.Fatal(err)
     }
+    end := time.Now()
+    log.Println(end.Sub(start))
 }
 // hashing functions
 
+// plain processing function
+ func funcPlaintext(line string) {
+    fmt.Println(line)
+}
 // md4 hashing function
 func funcMd4(line string) {
 	hash := md4.New()
