@@ -1,5 +1,5 @@
 # hashgen
-Hashgen is a simple CLI hash generator that is cross compiled for linux, Windows & Mac.
+Hashgen is a simple CLI hash generator written in go and cross compiled for Linux, Windows & Mac.
 
 Set your mode and wordlist with a simple command line, press enter and hashgen writes hashes to stdout.
 
@@ -20,8 +20,9 @@ Currently Supported functions:
 - sha1
 - sha256
 - sha512
+- plaintext
 
-Written in go 1.19.4 and cross compiled for linux, Windows & Mac.
+Hashgen is not very fast at the moment, but it has been a fun project to work on.
 
 ### Hash generator benchmarks
 https://github.com/cyclone-github/hashgen/tree/main/benchmarks
