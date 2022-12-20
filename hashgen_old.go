@@ -25,8 +25,9 @@ import (
 // v2022-12-15.2030; initial release
 // v2022-12-16.1800; fixed ntlm hash function, tweaked -w flag to be less restrictive, clean up code
 // v2022-12-17.2100; fixed typo in wordlist tag, added '-m plaintext' output mode (prints -w wordlist file to stdout)
+// v2022-12-20.1200; cleaned up bcrypt code
 func versionFunc() {
-    funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMi0xMi0xNy4yMTAwCg==")
+    funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMi0xMi0yMC4xMjAwCg==")
 }
 // help function
 func helpFunc() {
@@ -170,15 +171,13 @@ func funcSha512(line string) {
 // https://pkg.go.dev/golang.org/x/crypto/bcrypt
 func funcBcrypt(line string) {
     pwd := []byte(line)
-    hash := hashAndSalt(pwd)
-    fmt.Println(hash)
-}
-func hashAndSalt(pwd []byte) string {
-hash, err := bcrypt.GenerateFromPassword(pwd, bcrypt.DefaultCost )
-if err != nil {
-    log.Println(err)
-}
-return string(hash)
+    hash, err := bcrypt.GenerateFromPassword(pwd, bcrypt.MinCost )
+	if err != nil {
+		log.Println(err)
+	}
+	hashString := string(hash)
+    fmt.Println(hashString)
+	//return string(hash)
 }
 // crc32 hashing function
 func funcCrc32(line string) {
