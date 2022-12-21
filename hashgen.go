@@ -16,9 +16,14 @@ import (
 	"os"
 	"time"
 	"hash/crc32"
+	"hash/crc64"
 	"strconv"
 	"golang.org/x/crypto/md4"
-  "golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/bcrypt"
+    	"golang.org/x/crypto/ripemd160"
+    	"golang.org/x/crypto/sha3"
+    	"golang.org/x/crypto/blake2s"
+	"golang.org/x/crypto/blake2b"
 )
 
 // version history
@@ -27,9 +32,10 @@ import (
 // v2022-12-17.2100; fixed typo in wordlist tag, added '-m plaintext' output mode (prints -w wordlist file to stdout)
 // v2022-12-20.1200; cleaned up bcrypt code
 // v2022-12-20.1430-goroutine; complete rewrite using goroutines & read/write buffers
+// v2022-12-21.1400-goroutine; added multiple new algo's including hashcat mode equivalents
 
 func versionFunc() {
-    funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMi0xMi0yMC4xNDMwLWdvcm91dGluZQo=")
+    funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMi0xMi0yMS4xNDAwLWdvcm91dGluZQo=")
 }
 
 // help function
@@ -37,18 +43,32 @@ func helpFunc() {
     versionFunc()
     str := "Example Usage:\n"+
 			"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n"+
-			"\nSupported functions:\n"+
-			"base64decode\n"+
+			"\nFunction: \t Hashcat Mode:\n"+
+			"plaintext \t 99999\n"+
 			"base64encode\n"+
-			"bcrypt\n"+
-			"crc32\n"+
-			"md4\n"+
-			"md5\n"+
-			"ntlm\n"+
-			"plaintext\n"+
-			"sha1\n"+
-			"sha256\n"+
-			"sha512\n"
+			"base64decode\n"+
+			"bcrypt \t\t 3200\n"+
+			"crc32 \t\t 11500\n"+
+			"crc64\n"+
+			"md4 \t\t 900\n"+
+			"md5 \t\t 0\n"+
+			"ntlm \t\t 0\n"+
+			"sha1 \t\t 100\n"+
+			"sha2-224 \t 1300\n"+
+            		"sha2-384 \t 10800\n"+
+			"sha2-256 \t 1400\n"+
+			"sha2-512 \t 1700\n"+
+			"sha2-512-224\n"+
+			"sha2-512-256\n"+
+            		"sha3-224 \t 17300\n"+
+            		"sha3-256 \t 17400\n"+
+            		"sha3-384 \t 17400\n"+
+            		"sha3-512 \t 17400\n"+
+			"ripemd-160 \t 6000\n"+
+			"blake2s-256\n"+
+            		"blake2b-256\n"+
+			"blake2b-384\n"+
+			"blake2b-512 \t 600\n"
     fmt.Println(str)
     os.Exit(0)
 } 
@@ -111,22 +131,56 @@ func main() {
 	// create hash functions from flag -m
 	var h hash.Hash
 	switch hashFunc {
-	case "md5":
+	case "md5", "0":
 		h = md5.New()
-	case "md4":
+	case "md4", "900":
 		h = md4.New()
-	case "sha1":
+	case "sha1", "100":
 		h = sha1.New()
-	case "sha256":
+	case "sha2-224", "sha2_224", "sha2224", "1300":
+		hashFunc = "sha2-224"
+	case "sha2-384", "sha2_384", "sha2384","10800":
+		hashFunc = "sha2-384"
+	case "sha2-256", "sha2_256", "sha2256", "1400":
 		h = sha256.New()
-	case "sha512":
+	case "sha2-512", "sha2_512", "sha2512", "1700":
 		h = sha512.New()
-	case "base64encode":
-	case "base64decode":
-	case "bcrypt":
-	case "crc32":
-	case "ntlm":
-	case "plaintext":
+	case "sha2-512-224", "sha2_512_224", "sha2512224":
+		h = sha512.New512_224()
+	case "sha2-512-256", "sha2_512_256" , "sha2512256":
+		h = sha512.New512_256()
+	case "ripemd-160", "ripemd_160", "ripemd160", "6000":
+	    h = ripemd160.New()
+	case "blake2s-256", "blake2s_256", "blake2s256":
+		hashFunc = "blake2s-256"
+	case "blake2b-256", "blake2b_256", "blake2b256":
+		hashFunc = "blake2b-256"
+	case "blake2b-384", "blake2b_384", "blake2b384":
+		hashFunc = "blake2b-384"
+	case "blake2b-512", "blake2b_512", "blake2b512":
+		hashFunc = "blake2b-512"
+	case "sha3-224", "sha3_224", "sha3224", "17300":
+	    h = sha3.New224()
+    	case "sha3-256", "sha3_256", "sha3256", "17400":
+	    h = sha3.New256()
+    	case "sha3-384", "sha3_384", "sha3384", "17500":
+	    h = sha3.New384()
+    	case "sha3-512", "sha3_512", "sha3512", "17600":
+	    h = sha3.New512()
+	case "base64encode", "base64-e", "base64e":
+		hashFunc = "base64encode"
+	case "base64decode", "base64-d", "base64d":
+		hashFunc = "base64decode"
+	case "bcrypt", "3200":
+		hashFunc = "bcrypt"
+	case "crc32", "11500":
+		hashFunc = "crc32"
+	case "crc64":
+		hashFunc = "crc64"
+	case "ntlm", "1000":
+		hashFunc = "ntlm"
+	case "plaintext", "plain", "99999":
+		hashFunc = "plaintext"
 	default:
 		fmt.Printf("--> Invalid hash function: %s <--\n", hashFunc)
 		helpFunc()
@@ -158,6 +212,50 @@ func main() {
 				outputBuffer.WriteString(fmt.Sprintf("%v\n", hashString))
 				linesHashed++
 			}
+		} else if hashFunc == "blake2b-256" {
+			// hash blake2b_256 function
+			for inputBuffer.Scan() {
+				line := inputBuffer.Text()
+				lineByte := []byte(line)
+				hash, _ := blake2b.New256(nil)  // create a new BLAKE2b hash with a 256-bit output
+				hash.Write(lineByte)  // write the password to the hash
+				hashValue := hash.Sum(nil)  // compute the hash value
+				outputBuffer.WriteString(fmt.Sprintf("%x\n", hashValue))
+				linesHashed++
+			}
+		} else if hashFunc == "blake2b-384" {
+			// hash blake2b_384 function
+			for inputBuffer.Scan() {
+				line := inputBuffer.Text()
+				lineByte := []byte(line)
+				hash, _ := blake2b.New384(nil)  // create a new BLAKE2b hash with a 256-bit output
+				hash.Write(lineByte)  // write the password to the hash
+				hashValue := hash.Sum(nil)  // compute the hash value
+				outputBuffer.WriteString(fmt.Sprintf("%x\n", hashValue))
+				linesHashed++
+			}
+		} else if hashFunc == "blake2b-512" {
+			// hash blake2b_512 function
+			for inputBuffer.Scan() {
+				line := inputBuffer.Text()
+				lineByte := []byte(line)
+				hash, _ := blake2b.New512(nil)  // create a new BLAKE2b hash with a 256-bit output
+				hash.Write(lineByte)  // write the password to the hash
+				hashValue := hash.Sum(nil)  // compute the hash value
+				outputBuffer.WriteString(fmt.Sprintf("%x\n", hashValue))
+				linesHashed++
+			}
+		} else if hashFunc == "blake2s-256" {
+			// hash blake2s_256 function
+			for inputBuffer.Scan() {
+				line := inputBuffer.Text()
+				lineByte := []byte(line)
+				hash, _ := blake2s.New256(nil)  // create a new BLAKE2b hash with a 256-bit output
+				hash.Write(lineByte)  // write the password to the hash
+				hashValue := hash.Sum(nil)  // compute the hash value
+				outputBuffer.WriteString(fmt.Sprintf("%x\n", hashValue))
+				linesHashed++
+			}
 		} else if hashFunc == "crc32" {
 			// hash crc32 function
 			for inputBuffer.Scan() {
@@ -165,6 +263,16 @@ func main() {
 				h := crc32.ChecksumIEEE([]byte(line))
 				hash := strconv.FormatUint(uint64(h), 16)
 				outputBuffer.WriteString(fmt.Sprintf("%v\n", hash))
+				linesHashed++
+			}
+		} else if hashFunc == "crc64" {
+			// hash crc64 function
+			for inputBuffer.Scan() {
+				line := inputBuffer.Text()
+				password := []byte(line)
+				table := crc64.MakeTable(crc64.ECMA)
+				hash := crc64.Checksum(password, table)
+				outputBuffer.WriteString(fmt.Sprintf("%x\n", hash))
 				linesHashed++
 			}
 		} else if hashFunc == "base64encode" {
@@ -205,6 +313,22 @@ func main() {
 			for inputBuffer.Scan() {
 				line := inputBuffer.Text()
 				outputBuffer.WriteString(fmt.Sprintf("%v\n", line))
+				linesHashed++
+			}
+		} else if hashFunc == "sha2-224" {
+			// sha224 hash function
+			for inputBuffer.Scan() {
+				line := inputBuffer.Text()
+				hash := sha256.Sum224([]byte(line))
+				outputBuffer.WriteString(fmt.Sprintf("%x\n", hash))
+				linesHashed++
+			}
+		} else if hashFunc == "sha2-384" {
+			// sha384 hash function
+			for inputBuffer.Scan() {
+				line := inputBuffer.Text()
+				hash := sha512.Sum384([]byte(line))
+				outputBuffer.WriteString(fmt.Sprintf("%x\n", hash))
 				linesHashed++
 			}
 		} else { // other hash functions defined in switch
