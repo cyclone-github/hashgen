@@ -20,9 +20,9 @@ import (
 	"strconv"
 	"golang.org/x/crypto/md4"
 	"golang.org/x/crypto/bcrypt"
-    	"golang.org/x/crypto/ripemd160"
-    	"golang.org/x/crypto/sha3"
-    	"golang.org/x/crypto/blake2s"
+    "golang.org/x/crypto/ripemd160"
+    "golang.org/x/crypto/sha3"
+    "golang.org/x/crypto/blake2s"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -52,7 +52,7 @@ func helpFunc() {
 			"crc64\n"+
 			"md4 \t\t 900\n"+
 			"md5 \t\t 0\n"+
-			"ntlm \t\t 0\n"+
+			"ntlm \t\t 1000\n"+
 			"sha1 \t\t 100\n"+
 			"sha2-224 \t 1300\n"+
             		"sha2-384 \t 10800\n"+
@@ -60,8 +60,8 @@ func helpFunc() {
 			"sha2-512 \t 1700\n"+
 			"sha2-512-224\n"+
 			"sha2-512-256\n"+
-            		"sha3-224 \t 17300\n"+
-            		"sha3-256 \t 17400\n"+
+           	 	"sha3-224 \t 17300\n"+
+           		 "sha3-256 \t 17400\n"+
             		"sha3-384 \t 17400\n"+
             		"sha3-512 \t 17400\n"+
 			"ripemd-160 \t 6000\n"+
