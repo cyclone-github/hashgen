@@ -1,12 +1,12 @@
 # hashgen - Cyclone hash generator v2022-12-24.1800-optimize
-As of the latest release, hashgen has the fastest md5 hash rate of any publicly available CPU based hash generator I've tested (this isn't a race, just an observation). 
-I plan to add more features and optimize code as time allows. 
+As of the latest release, hashgen has the fastest md5 hash rate of any publicly available CPU based hash generator I've tested (this isn't a race, just an observation -- see benchmarks). These hashrates can be easily beat by improved code optimization and/or coding in faster programming language such as c/c++/rust, etc. 
+I plan to add more features and code optimizations as time allows. Bcrypt and especially argon2id modes are very slow (see benchmarks).
 
 Hashgen is a simple CLI hash generator written in go and cross compiled for Linux, Windows & Mac, although all testing and compiling is done on debian linux.
 
 To use hashgen, simply type your mode, wordlist input & hash output files with a simple command line and press enter.
 
-In addition to multiple hashing functions, hashgen can also encode / decode base64.
+In addition to supporting multiple hashing functions, hashgen can also encode / decode base64.
 
 Example Usage:
 
