@@ -39,7 +39,7 @@
 ### Hash generator benchmarks
  - Head to head comparison of different hash generators
  - All testing was performed hashing rockyou.txt (15,053,568 lines) to md5
- - All hashing stdout was written to /dev/null
+ - Hashing was written to /dev/null where applicable, or to an ssd zpool (this was to keep write speed from being a bottleneck)
  - Benchmarks are an average of 5x runtimes
 
 ### Results:
@@ -56,7 +56,7 @@
 - php v8.2 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.php
 - mdxfind https://github.com/cyclone-github/mdxfind
 - Python 3.9.2 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.py
-- ULM v1E139 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/ulm_results.txt (tested using wine on debian linux)
+- ULM v1E139 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/ulm_results.txt (tested using wine on debian linux, so take this with a grain of salt)
 - Linux Bash https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.sh
 
 ### Test rig specs:
