@@ -44,7 +44,7 @@ Example Usage:
 ### Hash generator benchmarks
 https://github.com/cyclone-github/hashgen/tree/main/benchmarks
 
-### Compile hashgen from source
+### compile hashgen from source
 - If you want the latest hashgen features, compiling from source is the best option since the release version may run several revisions behind the source code.
 - Download and install go https://go.dev/doc/install
 - Download hashgen.go and open a terminal / command prompt in that directory
@@ -63,6 +63,6 @@ https://github.com/cyclone-github/hashgen/tree/main/benchmarks
 - v2022-12-24.1800-optimize; optimized all hashing functions, tweaked buffer size
 
 ### thoughts
-- Why write hashgen? hashgen is nothing new (to me) as hashgen started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in 3 languages: python3, php and now go.
+- Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in 3 languages: python3, php and now go.
 - Why write hashgen in go instead of xyz language? I did this to push my go coding skills while also seeing how fast I could push go. During early testing, I was not expecting hashgen to be all that fast, but I have been pleasently surprised... and there is still a lot of room for improvement.
 - When I realized hashgen (go) was competitively fast compared to other publicly available hash generators, I decided to publish hashgen's code and binaries for others to use. I've really enjoyed this project and I hope you find it useful. 
