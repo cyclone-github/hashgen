@@ -61,3 +61,8 @@ https://github.com/cyclone-github/hashgen/tree/main/benchmarks
 - v2022-12-20.1430-goroutine; complete rewrite using goroutines & read/write buffers
 - v2022-12-21.1400-goroutine; added multiple new algo's including hashcat mode equivalents
 - v2022-12-24.1800-optimize; optimized all hashing functions, tweaked buffer size
+
+### thoughts
+- Why write hashgen? hashgen is nothing new (to me) as hashgen started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in 3 languages: python3, php and now go.
+- Why write hashgen in go instead of xyz language? I did this to push my go coding skills while also seeing how fast I could push go. During early testing, I was not expecting hashgen to be all that fast, but I have been pleasently surprised... and there is still a lot of room for improvement.
+- When I realized hashgen (go) was competitively fast compared to other publicly available hash generators, I decided to publish hashgen's code and binaries for others to use. I've really enjoyed this project and I hope you find it useful. 
