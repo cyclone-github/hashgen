@@ -1,0 +1,56 @@
+(archive from v2022-12-20.1430-goroutine benchmark)
+
+# Benchmarks (v2022-12-20.1430-goroutine)
+
+### Test rig specs:
+ - OS: Linux 5.15.64-1 (Debian 10.2.1-6)
+ - CPU: AMD Ryzen 7 3700X 8-Core Processor @ 3600MHz
+ - RAM: 64gb DDR4
+ 
+### hashgen benchmarks for all supported modes
+
+| Mode  | h/s |
+| ------------- | ------------- | 
+| plaintext | 5,506,821 | 
+| base64encode | 4,240,048 | 
+| crc32 | 4,170,545 | 
+| base64decode | 4,162,956 | 
+| md5 | 2,751,432 | 
+| sha1 | 2,545,714 | 
+| sha256 | 1,968,789 | 
+| md4 | 1,900,098 | 
+| sha512 | 1,592,121 | 
+| ntlm | 1,368,783 | 
+| bcrypt (MinCost) | 1,277 | 
+
+### Hash generator benchmarks
+ - Head to head comparison of different hash generators
+ - All testing was performed hashing rockyou.txt (15,053,568 lines) to md5
+ - All hashing stdout was written to /dev/null
+ - Benchmarks are an average of 5x runtimes
+
+### Results:
+| Program  | Time/s | h/s |
+| ------------- | ------------- | ------------- |
+| php8.2		| 5.293s | 2,844,052 |
+| go (hashgen)	| 5.471s | 2,751,432 |
+| mdxfind		| 13.0463s | 1,153,857 |
+| Python3.9	| 19.985s | 753,243 |
+| bash | 2h+ | N/A |
+
+- php v8.2 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.php
+- go v1.19.4 (hashgen) https://github.com/cyclone-github/hashgen/commit/1b73f08b095138ab3274de20a0e74a8e3a087fc0
+- mdxfind https://github.com/cyclone-github/mdxfind
+- Python 3.9.2 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.py
+- Linux Bash https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.sh
+
+### Test rig specs:
+ - OS: Linux 5.15.64-1 (Debian 10.2.1-6)
+ - CPU: AMD Ryzen 7 3700X 8-Core Processor @ 3600MHz
+ - RAM: 64gb DDR4
+
+### Hash generator benchmarks
+ - Head to head comparison of different hash generators
+ - All testing was performed hashing rockyou.txt (15,053,568 lines) to md5
+ - All hashing stdout was written to /dev/null
+ - Benchmarks are an average of 5x runtimes
