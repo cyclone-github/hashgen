@@ -1,0 +1,12 @@
+ULM v1E139
+
+https://unifiedlm.com/Home
+
+MD5 hashing complete
+============================================================
+Input | Output: rockyou | rockyou_ULM_001
+Items processed: 15053568
+Input size: 139.61 MB(s)
+Output size: 488.11 MB(s)
+Time taken: 2 mins 9 secs 
+============================================================
