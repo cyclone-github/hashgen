@@ -58,8 +58,3 @@
 - Python 3.9.2 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.py
 - ULM v1E139 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/ulm_results.txt (tested using wine on debian linux, so take this with a grain of salt)
 - Linux Bash https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.sh
-
-### Test rig specs:
- - OS: Linux 5.15.64-1 (Debian 10.2.1-6)
- - CPU: AMD Ryzen 7 3700X 8-Core Processor @ 3600MHz
- - RAM: 64gb DDR4
