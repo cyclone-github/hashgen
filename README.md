@@ -1,4 +1,4 @@
-# hashgen - Cyclone hash generator v2022-12-24.1800-optimize
+# hashgen - Cyclone hash generator v2023-03-15.0900-optimize
 As of the latest release, hashgen has the fastest md5 hash rate of any publicly available CPU based hash generator I've tested (this isn't a race, just an observation -- see benchmarks). These hashrates can be easily beat by improved code optimization and/or coding in faster programming language such as c/c++/rust, etc. 
 I plan to add more features and code optimizations as time allows. Bcrypt and especially argon2id modes are very slow (see benchmarks).
 
@@ -11,6 +11,10 @@ In addition to supporting multiple hashing functions, hashgen can also encode / 
 Example Usage:
 
 ./hashgen -m md5 -w wordlist.txt -o output.txt
+
+or
+
+./hashgen -m md5 -w wordlist.txt -o stdout
 
 | Function: | Hashcat Mode: |
 |-----------|-----------|
@@ -48,10 +52,10 @@ https://github.com/cyclone-github/hashgen/tree/main/benchmarks
 - If you want the latest hashgen features, compiling from source is the best option since the release version may run several revisions behind the source code.
 - Download and install go https://go.dev/doc/install
 - Download hashgen.go and open a terminal / command prompt in that directory
-- Type "go run hashgen.go -version". You should see the current version of hashgen print out (Cyclone hash generator v2022-xx-xx.xxxx).
+- Type "go run hashgen.go -version". You should see the current version of hashgen print out (Cyclone hash generator v2023-xx-xx.xxxx).
 - Now type "go build hashgen.go" to compile hashgen.go.
 - You will notice your binary is much larger than the ones I've uploaded. This is due to the flags used during compiling and my binaries are compressed with upx.
-- Some antivirus software on Windows may block hashgen-x64.exe from running. If this happens, you can add an exception to your antivirus software.
+- Some antivirus software on Windows may block hashgen.exe from running. If this happens, you can add an exception to your antivirus software.
 
 ### version history
 - v2022-12-15.2030; initial release
@@ -61,6 +65,7 @@ https://github.com/cyclone-github/hashgen/tree/main/benchmarks
 - v2022-12-20.1430-goroutine; complete rewrite using goroutines & read/write buffers
 - v2022-12-21.1400-goroutine; added multiple new algo's including hashcat mode equivalents
 - v2022-12-24.1800-optimize; optimized all hashing functions, tweaked buffer size
+- v2023-03-15.0900-optimize; added "stdout", fixed "lines/sec" to show "M lines/sec", tweaked output buffer for stdout, tweaked sha2xxx flags
 
 ### thoughts
 - Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in 3 languages: python3, php and now go.
