@@ -9,24 +9,25 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
-	"unicode/utf16"
 	"flag"
 	"fmt"
-	"log"
-	"hash"
-	"os"
-	"sync"
-	"time"
-	"hash/crc32"
-	"hash/crc64"
-	"strconv"
 	"github.com/alexedwards/argon2id"
-	"golang.org/x/crypto/md4"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/blake2s"
+	"golang.org/x/crypto/md4"
 	"golang.org/x/crypto/ripemd160"
 	"golang.org/x/crypto/sha3"
-	"golang.org/x/crypto/blake2s"
-	"golang.org/x/crypto/blake2b"
+	"hash"
+	"hash/crc32"
+	"hash/crc64"
+	"io"
+	"log"
+	"os"
+	"strconv"
+	"sync"
+	"time"
+	"unicode/utf16"
 )
 
 // version history
@@ -38,50 +39,49 @@ import (
 // v2022-12-21.1400-goroutine; added multiple new algo's including hashcat mode equivalents
 // v2022-12-23.1200-goroutine; added argon2id (very slow), added sync / wait group for future use, change h/s readout from millions to thousands,
 // v2022-12-24.1800-optimize; optimized all hashing functions, tweaked buffer size
+// v2023-03-15.0900-optimize; added "stdout", fixed "lines/sec" to show "M lines/sec", tweaked output buffer for stdout, tweaked sha2xxx flags to allow "shaxxx", ex: "sha512"
 
-// TODO: 
+// TODO:
 // continue to add more hash functions
-// add "-o stdout" flag to print hashes to stdout
-// continue optimizing hash functions for better performance (ex: ntlm is currently slower than md5)
+// continue optimizing hash functions for better performance
 // fine tune goroutines for better performance with read --> hash function --> write
-// add feature to allow hash cracking in addition to hash generation (future program: hashgenie)
 
 func versionFunc() {
-    funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMi0xMi0yNC4xODAwLW9wdGltaXplCg==")
+	funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMy0wMy0xNS4wOTAwLW9wdGltaXplCg==")
 }
 
 // help function
 func helpFunc() {
-    versionFunc()
-    str := "Example Usage:\n"+
-	"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n"+
-	"\nFunction: \t Hashcat Mode:\n"+
-	"argon2id (very slow!)\n"+
-	"base64encode\n"+
-	"base64decode\n"+
-	"bcrypt \t\t 3200\n"+
-	"blake2s-256\n"+
-	"blake2b-256\n"+
-	"blake2b-384\n"+
-	"blake2b-512 \t 600\n"+
-	"crc32 \t\t 11500\n"+
-	"crc64\n"+
-	"md4 \t\t 900\n"+
-	"md5 \t\t 0\n"+
-	"ntlm \t\t 1000\n"+
-	"plaintext \t 99999\n"+
-	"ripemd-160 \t 6000\n"+
-	"sha1 \t\t 100\n"+
-	"sha2-224 \t 1300\n"+
-	"sha2-384 \t 10800\n"+
-	"sha2-256 \t 1400\n"+
-	"sha2-512 \t 1700\n"+
-	"sha2-512-224\n"+
-	"sha2-512-256\n"+
-	"sha3-224 \t 17300\n"+
-	"sha3-256 \t 17400\n"+
-	"sha3-384 \t 17400\n"+
-	"sha3-512 \t 17400\n"
+	versionFunc()
+	str := "Example Usage:\n" +
+		"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n" +
+		"\nFunction: \t Hashcat Mode:\n" +
+		"argon2id (very slow!)\n" +
+		"base64encode\n" +
+		"base64decode\n" +
+		"bcrypt \t\t 3200\n" +
+		"blake2s-256\n" +
+		"blake2b-256\n" +
+		"blake2b-384\n" +
+		"blake2b-512 \t 600\n" +
+		"crc32 \t\t 11500\n" +
+		"crc64\n" +
+		"md4 \t\t 900\n" +
+		"md5 \t\t 0\n" +
+		"ntlm \t\t 1000\n" +
+		"plaintext \t 99999\n" +
+		"ripemd-160 \t 6000\n" +
+		"sha1 \t\t 100\n" +
+		"sha2-224 \t 1300\n" +
+		"sha2-384 \t 10800\n" +
+		"sha2-256 \t 1400\n" +
+		"sha2-512 \t 1700\n" +
+		"sha2-512-224\n" +
+		"sha2-512-256\n" +
+		"sha3-224 \t 17300\n" +
+		"sha3-256 \t 17400\n" +
+		"sha3-384 \t 17400\n" +
+		"sha3-512 \t 17400\n"
 	fmt.Println(str)
 	os.Exit(0)
 }
@@ -93,40 +93,40 @@ func main() {
 	var inputFile string
 	flag.StringVar(&inputFile, "w", "", "Input file to process")
 	var outputFile string
-	flag.StringVar(&outputFile, "o", "", "Output file to write hashes to")
+	flag.StringVar(&outputFile, "o", "stdout", "Output file to write hashes to (use 'stdout' to print to console)")
 	version := flag.Bool("version", false, "Program version:")
-    cyclone := flag.Bool("cyclone", false, "hashgen")
-    help := flag.Bool("help", false, "Prints help:")
+	cyclone := flag.Bool("cyclone", false, "hashgen")
+	help := flag.Bool("help", false, "Prints help:")
 	flag.Parse()
 
 	// run sanity checks for -version & -help
-    if *version == true {
-        versionFunc()
-        os.Exit(0)
-    } else if *cyclone == true {
-        funcBase64Decode("Q29kZWQgYnkgY3ljbG9uZSA7KQo=")
-        os.Exit(0)
-    } else if *help == true {
-        helpFunc()
-    }
+	if *version == true {
+		versionFunc()
+		os.Exit(0)
+	} else if *cyclone == true {
+		funcBase64Decode("Q29kZWQgYnkgY3ljbG9uZSA7KQo=")
+		os.Exit(0)
+	} else if *help == true {
+		helpFunc()
+	}
 	// run sanity checks on algo input (-m)
-    if len(hashFunc) < 1 {
-        fmt.Println("--> missing '-m algo' <--\n")
-        helpFunc()
-        os.Exit(0)
-    }
+	if len(hashFunc) < 1 {
+		fmt.Println("--> missing '-m algo' <--\n")
+		helpFunc()
+		os.Exit(0)
+	}
 	// run sanity checks on wordlist input (-w)
-    if len(inputFile) < 1 {
-        fmt.Println("--> missing '-w wordlist' <--\n")
-        helpFunc()
-        os.Exit(0)
-    }
+	if len(inputFile) < 1 {
+		fmt.Println("--> missing '-w wordlist' <--\n")
+		helpFunc()
+		os.Exit(0)
+	}
 	// run sanity checks on output (-o)
-    if len(outputFile) < 1 {
-        fmt.Println("--> missing '-o filename' <--\n")
-        helpFunc()
-        os.Exit(0)
-    } 
+	if len(outputFile) < 1 {
+		fmt.Println("--> missing '-o filename' <--\n")
+		helpFunc()
+		os.Exit(0)
+	}
 	// open input file
 	input, err := os.Open(inputFile)
 	if err != nil {
@@ -135,12 +135,19 @@ func main() {
 	}
 	defer input.Close()
 	// open output file
-	output, err := os.Create(outputFile)
-	if err != nil {
-		fmt.Printf("--> Error opening output file: %v <--\n", err)
-		os.Exit(1)
+	var output io.Writer
+	if outputFile == "stdout" {
+		output = os.Stdout
+	} else {
+		file, err := os.Create(outputFile)
+		if err != nil {
+			fmt.Printf("--> Error opening output file: %v <--\n", err)
+			os.Exit(1)
+		}
+		defer file.Close()
+		output = file
 	}
-	defer output.Close()
+
 	// create hash functions from flag -m
 	var h hash.Hash
 	switch hashFunc {
@@ -152,17 +159,17 @@ func main() {
 		h = md4.New()
 	case "sha1", "100":
 		h = sha1.New()
-	case "sha2-224", "sha2_224", "sha2224", "1300":
+	case "sha2-224", "sha2_224", "sha2224", "sha224", "1300":
 		hashFunc = "sha2-224"
-	case "sha2-384", "sha2_384", "sha2384","10800":
+	case "sha2-384", "sha2_384", "sha2384", "sha384", "10800":
 		hashFunc = "sha2-384"
-	case "sha2-256", "sha2_256", "sha2256", "1400":
+	case "sha2-256", "sha2_256", "sha2256", "sha256", "1400":
 		h = sha256.New()
-	case "sha2-512", "sha2_512", "sha2512", "1700":
+	case "sha2-512", "sha2_512", "sha2512", "sha512", "1700":
 		h = sha512.New()
-	case "sha2-512-224", "sha2_512_224", "sha2512224":
+	case "sha2-512-224", "sha2_512_224", "sha2512224", "sha512224":
 		h = sha512.New512_224()
-	case "sha2-512-256", "sha2_512_256" , "sha2512256":
+	case "sha2-512-256", "sha2_512_256", "sha2512256", "sha512256":
 		h = sha512.New512_256()
 	case "ripemd-160", "ripemd_160", "ripemd160", "6000":
 		h = ripemd160.New()
@@ -199,18 +206,18 @@ func main() {
 	default:
 		fmt.Printf("--> Invalid hash function: %s <--\n", hashFunc)
 		helpFunc()
-        os.Exit(0)
+		os.Exit(0)
 	}
-	
+
 	// create read / write buffers
 	// input buffer
 	inputBuffer := bufio.NewScanner(input)
-	// set buffer capacity to 10mb
-	const maxCapacity = 10*1024*1024
+	// set input buffer
+	const maxCapacity = 10 * 1024 * 1024
 	buf := make([]byte, maxCapacity)
 	inputBuffer.Buffer(buf, maxCapacity)
-	// set output buffer to 100mb
-	outputBuffer := bufio.NewWriterSize(output, 100*1024*1024)
+	// set output buffer
+	outputBuffer := bufio.NewWriterSize(output, 10*1024*1024)
 
 	// create buffered channels to receive lines <-- not currently emplimented
 	//lines := make(chan string, 10*1024*1024)
@@ -218,7 +225,7 @@ func main() {
 
 	// create WaitGroup to wait for goroutines to finish
 	var wg sync.WaitGroup
-	
+
 	// create goroutine bool channel
 	done := make(chan bool)
 	// start hashgen goroutine
@@ -325,7 +332,7 @@ func main() {
 				hashString := strconv.FormatUint(hash, 16)
 				outputBuffer.WriteString(hashString + "\n")
 				linesHashed++
-			  }
+			}
 		} else if hashFunc == "base64encode" {
 			// base64encode
 			for inputBuffer.Scan() {
@@ -392,8 +399,9 @@ func main() {
 			}
 		}
 		elapsedTime := time.Since(startTime)
-		linesPerSecond := float64(linesHashed) / elapsedTime.Seconds() *0.001 // convert to thousand hashes per second
-		log.Printf("Finished hashing %d lines in %v (%.3f lines/sec)\n", linesHashed, elapsedTime, linesPerSecond)
+		runTime := float64(elapsedTime.Seconds())
+		linesPerSecond := float64(linesHashed) / elapsedTime.Seconds() * 0.000001 // convert to thousand hashes per second
+		log.Printf("Finished hashing %d lines in %.3f sec (%.3f M lines/sec)\n", linesHashed, runTime, linesPerSecond)
 		done <- true
 	}()
 
@@ -409,10 +417,12 @@ func main() {
 
 // base64 decode function used for displaying encoded messages
 func funcBase64Decode(line string) {
-    str, err := base64.StdEncoding.DecodeString(line)
-    if err != nil {
+	str, err := base64.StdEncoding.DecodeString(line)
+	if err != nil {
 		log.Println("--> Text doesn't appear to be base64 encoded. <--")
-        os.Exit(0)
-    }
-    fmt.Printf("%s\n", str)
+		os.Exit(0)
+	}
+	fmt.Printf("%s\n", str)
 }
+
+// end code
