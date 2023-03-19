@@ -53,9 +53,10 @@
 | ULM | 129s | 116,694 |
 | bash | 2h+ | N/A |
 
-- go v1.19.4 (hashgen) https://github.com/cyclone-github/hashgen/commit/1b73f08b095138ab3274de20a0e74a8e3a087fc0
-- php v8.2 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.php
+- hashgen (go) https://github.com/cyclone-github/hashgen/releases
+- hashgen (php) https://github.com/cyclone-github/hashgen/tree/main/hashgen_php
+- hashgen (c) https://github.com/cyclone-github/hashgen/tree/main/hashgen_c
 - mdxfind https://github.com/cyclone-github/mdxfind
-- Python 3.9.2 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.py
+- hashgen (python) https://github.com/cyclone-github/hashgen/tree/main/hashgen_python
 - ULM v1E139 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/ulm_results.txt (tested using wine on debian linux, so take this with a grain of salt)
 - Linux Bash https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.sh
