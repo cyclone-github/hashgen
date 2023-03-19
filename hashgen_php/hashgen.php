@@ -3,7 +3,7 @@
 
 // script by cyclone to generate hashes
 // requires php to be installed (ex: sudo apt install php8.2 -y)
-// tested with php7.4 & php8.2 
+// tested with php7.4 & php8.2
 // version 2022-12-16.0900; github release
 // version 2023-03-15.1445; updated github version to include all php supported algo's, and add program flags for wordlist, algo, output file, version, help, etc
 
