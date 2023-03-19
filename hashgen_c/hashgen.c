@@ -18,7 +18,7 @@
 // developing a multi-threaded, thread safe application in C makes me very appreciative of the power and simplicity of Go :)
 // v2023-03-18.1945; initial github release
 
-// todo
+// todo 
 // optimize code (C version is slower than Go)
 
 // program version
