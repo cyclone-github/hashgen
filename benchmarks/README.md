@@ -1,4 +1,4 @@
-# Benchmarks (v2022-12-24.1800-optimize)
+# Benchmarks
 
 ### Test rig specs:
  - OS: Linux 5.15.64-1 (Debian 10.2.1-6)
@@ -14,7 +14,7 @@
 | crc64	|	7,746,863 |
 | crc32	|	7,664,947 |
 | base64encode	|	7,612,708 |
-| md5	|	3,614,079 |
+| md5	|	3,706,862 |
 | sha1	|	3,079,162 |
 | sha2-224	|	3,034,407 |
 | blake2s-256	|	2,730,162 |
@@ -45,9 +45,9 @@
 ### Results:
 | Program  | Time/s | h/s |
 | ------------- | ------------- | ------------- |
-| hashgen (go)	| 4.165s | 3,614,079 |
+| hashgen (go)	| 4.061s | 3,706,862 |
 | hashgen (php)	| 5.293s | 2,844,052 |
-| hashgen (c)	| 5.475s | 2,749,731 |
+| hashgen (c)	| 5.436s | 2,769,024 |
 | mdxfind	| 13.0463s | 1,153,857 |
 | hashgen (python)	| 19.985s | 753,243 |
 | ULM | 129s | 116,694 |
