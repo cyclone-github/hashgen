@@ -7,7 +7,7 @@ import hashlib
 
 # script by cyclone to generate hashes
 # requires python3 to be installed
-# tested with python v3.9.2
+# tested with python v3.9.2 
 # version 2022-12-16.0900
 # version 2023-03-15.1445; updated github version to include all hashlib supported algo's, and add program flags for wordlist, algo, output file, version, help, etc
 
