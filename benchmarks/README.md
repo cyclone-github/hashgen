@@ -50,6 +50,7 @@
 | hashgen (c)	| 5.436s | 2,769,024 |
 | mdxfind	| 13.0463s | 1,153,857 |
 | hashgen (python)	| 19.985s | 753,243 |
+| hashcat test.pl	| 23.086s | 653,840 |
 | ULM | 129s | 116,694 |
 | bash | 2h+ | N/A |
 
@@ -58,5 +59,6 @@
 - hashgen (c) https://github.com/cyclone-github/hashgen/tree/main/hashgen_c
 - mdxfind https://github.com/cyclone-github/mdxfind
 - hashgen (python) https://github.com/cyclone-github/hashgen/tree/main/hashgen_python
+- hashcat test.pl https://github.com/hashcat/hashcat/blob/master/tools/test.pl
 - ULM v1E139 https://github.com/cyclone-github/hashgen/blob/main/benchmarks/ulm_results.txt (tested using wine on debian linux, so take this with a grain of salt)
 - Linux Bash https://github.com/cyclone-github/hashgen/blob/main/benchmarks/hashgen.sh
