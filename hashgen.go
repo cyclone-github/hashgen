@@ -40,6 +40,7 @@ import (
 // v2022-12-23.1200-goroutine; added argon2id (very slow), added sync / wait group for future use, change h/s readout from millions to thousands,
 // v2022-12-24.1800-optimize; optimized all hashing functions, tweaked buffer size
 // v2023-03-15.0900-optimize; added "stdout", fixed "lines/sec" to show "M lines/sec", tweaked output buffer for stdout, tweaked sha2xxx flags to allow "shaxxx", ex: "sha512"
+// v2023-03-28.1155-optimize; added "stdin"
 
 // TODO:
 // continue to add more hash functions
@@ -47,7 +48,7 @@ import (
 // fine tune goroutines for better performance with read --> hash function --> write
 
 func versionFunc() {
-	funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMy0wMy0xNS4wOTAwLW9wdGltaXplCg==")
+	funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMy0wMy0yOC4xMTU1LW9wdGltaXplCg==")
 }
 
 // help function
@@ -55,6 +56,7 @@ func helpFunc() {
 	versionFunc()
 	str := "Example Usage:\n" +
 		"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n" +
+		"\n./hashgen -m md5 -w stdin -o stdout\n" +
 		"\nFunction: \t Hashcat Mode:\n" +
 		"argon2id (very slow!)\n" +
 		"base64encode\n" +
@@ -91,7 +93,7 @@ func main() {
 	var hashFunc string
 	flag.StringVar(&hashFunc, "m", "", "Hash function to use")
 	var inputFile string
-	flag.StringVar(&inputFile, "w", "", "Input file to process")
+	flag.StringVar(&inputFile, "w", "stdin", "Input file to process (use 'stdin' to read from standard input)")
 	var outputFile string
 	flag.StringVar(&outputFile, "o", "stdout", "Output file to write hashes to (use 'stdout' to print to console)")
 	version := flag.Bool("version", false, "Program version:")
@@ -128,12 +130,18 @@ func main() {
 		os.Exit(0)
 	}
 	// open input file
-	input, err := os.Open(inputFile)
-	if err != nil {
-		fmt.Printf("--> Error opening input file: %v <--\n", err)
-		os.Exit(1)
+	var input io.Reader
+	if inputFile == "stdin" {
+		input = os.Stdin
+	} else {
+		file, err := os.Open(inputFile)
+		if err != nil {
+			fmt.Printf("--> Error opening input file: %v <--\n", err)
+			os.Exit(1)
+		}
+		defer file.Close()
+		input = file
 	}
-	defer input.Close()
 	// open output file
 	var output io.Writer
 	if outputFile == "stdout" {
