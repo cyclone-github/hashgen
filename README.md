@@ -14,7 +14,7 @@ Example Usage:
 
 or
 
-./hashgen -m md5 -w wordlist.txt -o stdout
+cat wordlist.txt | ./hashgen -m md5 -w stdin -o stdout
 
 | Function: | Hashcat Mode: |
 |-----------|-----------|
@@ -67,6 +67,7 @@ or
 - v2022-12-21.1400-goroutine; added multiple new algo's including hashcat mode equivalents
 - v2022-12-24.1800-optimize; optimized all hashing functions, tweaked buffer size
 - v2023-03-15.0900-optimize; added "stdout", edited "lines/sec" to show "M lines/sec", tweaked output buffer for stdout, tweaked sha2xxx flags
+- v2023-03-28.1155-optimize; added "stdin"
 
 ### thoughts
 - Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in several languages: python, php, C and Go. All versions are included in this github repository, although hashgen (Go) is the only maintained version as it includes more features and better performance. 
