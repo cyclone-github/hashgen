@@ -51,12 +51,8 @@ cat wordlist.txt | ./hashgen -m md5 -w stdin -o stdout
 
 ### compile hashgen from source
 - If you want the latest hashgen features, compiling from source is the best option since the release version may run several revisions behind the source code.
-- Download and install go https://go.dev/doc/install, or if using linux, simply run my go install script https://github.com/cyclone-github/scripts/blob/main/install_golang.sh
-- Download hashgen.go and open a terminal / command prompt in that directory
-- Type "go run hashgen.go -version". You should see the current version of hashgen print out.
-- Now type "go build hashgen.go" to compile hashgen.go, or if using linux, use my script to compile https://github.com/cyclone-github/scripts/blob/main/go_compiler.sh
-- You will notice your binary is much larger than the ones I've uploaded. This is due to the flags used during compiling and my binaries are stripped, then compressed with upx.
-- Some Windows antivirus software may block hashgen.exe from running. If this happens, you can add an exception to your antivirus software.
+- Compile from source code info:
+- https://github.com/cyclone-github/scripts/blob/main/intro_to_go.txt
 
 ### version history
 - v2022-12-15.2030; initial github release
