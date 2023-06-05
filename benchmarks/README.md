@@ -46,8 +46,8 @@
 | Program  | Time/s | h/s |
 | ------------- | ------------- | ------------- |
 | hashgen (go)	| 3.956s | 3,805,250 |
+| hashgen (c)	| 4.120s | 3,652,047 |
 | hashgen (php)	| 5.293s | 2,844,052 |
-| hashgen (c)	| 5.436s | 2,769,024 |
 | mdxfind	| 13.0463s | 1,153,857 |
 | hashgen (python)	| 19.985s | 753,243 |
 | hashcat test.pl	| 23.086s | 653,840 |

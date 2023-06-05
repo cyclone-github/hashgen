@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <stdatomic.h>
 
 // this is a complete rewrite of hashgen in C
 // other than micro controller / embedded systems, I have little coding experience with C
@@ -17,29 +18,30 @@
 // in order to make hashgen (C) thread safe, a mutex-protected read/write buffer was implemented which slowed performance down to below hashgen (Go) and hashgen (php)
 // developing a multi-threaded, thread safe application in C makes me very appreciative of the power and simplicity of Go :)
 // v2023-03-18.1945; initial github release
+// v2023-03-27.1945; removed mutex locks for better performance
+// v2023-04-25.1020; handle memory allocations using malloc, count processed lines using atomic_size for thread safety
+// v2023-06-05.1810; default to stdin if -w not specified and stdout if -o not specified
 
-// todo 
+// todo -- probably won't happen any time soon as my focus is on hashgen(Go)
 // optimize code (C version is slower than Go)
 
 // program version
-#define PROGRAM_VERSION "2023-03-18.1945"
+#define PROGRAM_VERSION "v2023-06-05.1810"
 
 // read / write buffer
-#define BUFFER_SIZE 2 * 1024 * 1024
+#define BUFFER_SIZE (10 * 1024 * 1024)
 
 typedef struct {
     const char *hash_mode;
     FILE *input_handle;
     FILE *output_handle;
-    size_t *lines_processed;
-    pthread_mutex_t *input_mutex;
-    pthread_mutex_t *lines_processed_mutex;
+    atomic_size_t *lines_processed;
 } ThreadData;
 
 // set number of application threads to CPU threads, defaults to 1 if unable to detect CPU thread count
 int get_num_threads() {
     int num_threads = sysconf(_SC_NPROCESSORS_ONLN);
-    return num_threads > 0 ? num_threads : 1; // fallback to 1
+    return (num_threads > 0) ? num_threads : 1; // fallback to 1
 }
 
 void print_usage();
@@ -63,7 +65,8 @@ void clear_screen() {
 void print_usage() {
     print_version();
     printf("Example Usage:\n");
-    printf("./hashgen -m md5 -w wordlist.txt -o output.txt\n");
+    printf("./hashgen.bin -m md5 -w wordlist.txt -o output.txt\n");
+    printf("cat wordlist.txt | ./hashgen.bin -m md5 > output.txt\n");
     exit(1);
 }
 
@@ -82,6 +85,7 @@ void print_algos() {
     printf("Supported hash algorithms:\n");
     EVP_MD_do_all_sorted(print_digest_name, NULL);
 }
+
 void print_digest_name(const EVP_MD *md, const char *name, const char *unused, void *u) {
     printf("%s\n", name);
 }
@@ -92,30 +96,24 @@ void *process_lines(void *args) {
     const char *hash_mode = data->hash_mode;
     FILE *input_handle = data->input_handle;
     FILE *output_handle = data->output_handle;
-    size_t *lines_processed = data->lines_processed;
-    pthread_mutex_t *input_mutex = data->input_mutex;
-    pthread_mutex_t *lines_processed_mutex = data->lines_processed_mutex;
+    atomic_size_t *lines_processed = data->lines_processed;
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     const EVP_MD *md = EVP_get_digestbyname(hash_mode);
 
-    char input_buffer[BUFFER_SIZE];
-    char output_buffer[BUFFER_SIZE];
+    char *input_buffer = (char *)malloc(BUFFER_SIZE);
+    char *output_buffer = (char *)malloc(BUFFER_SIZE);
     size_t input_pos = 0;
     size_t output_pos = 0;
     char *saveptr;
 
     while (1) {
-        pthread_mutex_lock(input_mutex);
         if (!fgets(input_buffer + input_pos, BUFFER_SIZE - input_pos, input_handle)) {
-            pthread_mutex_unlock(input_mutex);
             break;
         }
         input_pos += strlen(input_buffer + input_pos);
         if (input_buffer[input_pos - 1] != '\n' && !feof(input_handle)) {
-            pthread_mutex_unlock(input_mutex);
             continue;
         }
-        pthread_mutex_unlock(input_mutex);
 
         char *line = strtok_r(input_buffer, "\n", &saveptr);
         while (line) {
@@ -135,9 +133,7 @@ void *process_lines(void *args) {
                 output_pos = 0;
             }
 
-            pthread_mutex_lock(lines_processed_mutex);
-            (*lines_processed)++;
-            pthread_mutex_unlock(lines_processed_mutex);
+            atomic_fetch_add(lines_processed, 1);
 
             line = strtok_r(NULL, "\n", &saveptr);
         }
@@ -147,8 +143,11 @@ void *process_lines(void *args) {
 
     if (output_pos > 0) {
         fwrite(output_buffer, 1, output_pos, output_handle);
+        fflush(output_handle);
     }
 
+    free(input_buffer);
+    free(output_buffer);
     EVP_MD_CTX_free(mdctx);
 
     return NULL;
@@ -172,13 +171,17 @@ void main(int argc, char *argv[]) {
     while ((opt = getopt(argc, argv, "w:m:o:vcah")) != -1) {
         switch (opt) {
         case 'w':
-            wordlist_file = optarg;
+            if (!wordlist_file) {
+                wordlist_file = optarg;
+            }
             break;
         case 'm':
             hash_mode = optarg;
             break;
         case 'o':
-            output_file = optarg;
+            if (!output_file) {
+                output_file = optarg;
+            }
             break;
         case 'v':
             print_version();
@@ -195,8 +198,14 @@ void main(int argc, char *argv[]) {
         }
     }
 
-    if (!wordlist_file || !hash_mode || !output_file) {
-        print_usage();
+    // if wordlist_file is NULL, -w flag was not provided
+    if (!wordlist_file) {
+        wordlist_file = "/dev/stdin";  // use stdin as default
+    }
+
+    // if output_file is NULL, -o flag was not provided
+    if (!output_file) {
+        output_file = "/dev/stdout";  // use stdout as default
     }
 
     if (!EVP_get_digestbyname(hash_mode)) {
@@ -218,12 +227,11 @@ void main(int argc, char *argv[]) {
     }
 
     int num_threads = get_num_threads();
-    pthread_t threads[num_threads];
-    ThreadData thread_data[num_threads];
+    pthread_t *threads = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
+    ThreadData *thread_data = (ThreadData *)malloc(num_threads * sizeof(ThreadData));
 
-    size_t lines_processed = 0;
-    pthread_mutex_t input_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_t lines_processed_mutex = PTHREAD_MUTEX_INITIALIZER;
+    atomic_size_t *lines_processed = (atomic_size_t *)malloc(sizeof(atomic_size_t));
+    atomic_init(lines_processed, 0);
 
     struct timeval start, end;
 
@@ -233,9 +241,7 @@ void main(int argc, char *argv[]) {
         thread_data[i].hash_mode = hash_mode;
         thread_data[i].input_handle = input_handle;
         thread_data[i].output_handle = output_handle;
-        thread_data[i].lines_processed = &lines_processed;
-        thread_data[i].input_mutex = &input_mutex;
-        thread_data[i].lines_processed_mutex = &lines_processed_mutex;
+        thread_data[i].lines_processed = lines_processed;
         pthread_create(&threads[i], NULL, process_lines, &thread_data[i]);
     }
 
@@ -243,15 +249,18 @@ void main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
     }
 
+    // print out results
     gettimeofday(&end, NULL);
     double elapsed = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-    printf("Finished hashing %zu lines in %.3f sec (%.0f lines/sec)\n", lines_processed, elapsed, lines_processed / elapsed);
+    printf("Finished hashing %zu lines in %.3f sec (%.0f lines/sec)\n", atomic_load(lines_processed), elapsed, atomic_load(lines_processed) / elapsed);
     printf("CPU Threads Used: %d\n", num_threads);
 
     fclose(input_handle);
     fclose(output_handle);
 
+    free(threads);
+    free(thread_data);
+    free(lines_processed);
+
     return;
 }
-
-// end
