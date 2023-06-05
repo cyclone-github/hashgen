@@ -161,8 +161,6 @@ void main(int argc, char *argv[]) {
         print_usage();
     }
 
-    printf("Processing wordlist...\n");
-
     int opt;
     char *wordlist_file = NULL;
     char *hash_mode = NULL;
@@ -197,6 +195,8 @@ void main(int argc, char *argv[]) {
             print_usage();
         }
     }
+
+    printf("Processing wordlist...\n");
 
     // if wordlist_file is NULL, -w flag was not provided
     if (!wordlist_file) {
