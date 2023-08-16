@@ -69,8 +69,8 @@ func helpFunc() {
 		"blake2b-512 \t 600\n" +
 		"crc32 \t\t 11500\n" +
 		"crc64\n" +
-		"md4 \t\t\t 900\n" +
-		"md5 \t\t\t 0\n" +
+		"md4 \t\t 900\n" +
+		"md5 \t\t 0\n" +
 		"ntlm \t\t 1000\n" +
 		"plaintext \t 99999 \t (can be used to dehex wordlist)\n" +
 		"ripemd-160 \t 6000\n" +
