@@ -43,9 +43,10 @@ import (
 // v2023-03-28.1155-optimize; added "stdin"
 // v2023-05-13.0000-optimize; optimized code all hashing functions for better performance
 // v2023-08-15.1900-hashplain; added: -hashplain flag for hash:plain output, support for $HEX[] wordlist, -cost flag for bcrypt, tweaked: write buffers & custom buffers for argon & bcrypt, tweaked logging outputs
+// v2023-08-16.1200-hashplain; added error correction to 'fix' improperly formatted $HEX[] lines
 
 func versionFunc() {
-	funcBase64Decode("Q3ljbG9uZSBoYXNoIGdlbmVyYXRvciB2MjAyMy0wOC0xNS4xOTAwLWhhc2hwbGFpbgo=")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2023-08-16.1200-hashplain")
 }
 
 // help function
@@ -93,19 +94,39 @@ func helpFunc() {
 func checkForHex(line string) string {
 	// check if line is in $HEX[] format
 	if strings.HasPrefix(line, "$HEX[") && strings.HasSuffix(line, "]") {
-		hexContent := line[5 : len(line)-1]
-		// if hex has an odd length, handle it by shifting and adding a zero nibble
-		if len(hexContent)%2 != 0 {
-			hexContent = "0" + hexContent
-		}
+		// find first '[' and last ']'
+		startIdx := strings.Index(line, "[")
+		endIdx := strings.LastIndex(line, "]")
+		hexContent := line[startIdx+1 : endIdx]
+
 		decoded, err := hex.DecodeString(hexContent)
+		// error handling
 		if err != nil {
-			log.Printf("Error decoding $HEX[] content: %v", err)
-		} else {
-			return string(decoded) // return dehexed line
+			// remove blank spaces
+			hexContent = strings.ReplaceAll(hexContent, " ", "")
+
+			// remove invalid hex characters
+			hexContent = strings.Map(func(r rune) rune {
+				if strings.ContainsRune("0123456789abcdefABCDEF", r) {
+					return r
+				}
+				return -1 // remove invalid hex character
+			}, hexContent)
+
+			// if hex has odd length, add zero nibble
+			if len(hexContent)%2 != 0 {
+				hexContent = "0" + hexContent
+			}
+
+			decoded, err = hex.DecodeString(hexContent)
+			if err != nil {
+				log.Printf("Error decoding $HEX[] content: %v", err)
+			}
 		}
+
+		return string(decoded) // return dehexed line
 	}
-	return line // return original line if not in $HEX[] format or if an error occurs
+	return line // return original line if not in $HEX[] format or if non-correctable error occurs
 }
 
 const (
