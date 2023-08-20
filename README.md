@@ -1,4 +1,6 @@
 # hashgen (Go) - Cyclone's hash generator
+![image](https://i.imgur.com/n11gZHM.png)
+
 As of the this writing, hashgen (Go) has the fastest md5 hash rate of any publicly available CPU based hash generator I've tested (this isn't a race, just an observation -- see benchmarks). These hashrates can be easily beat by improved code optimization and/or coding in faster programming languages.
 
 Hashgen is a CLI hash generator written in Go and can be cross compiled for Linux, Windows & Mac, although testing and compiling is mainly done on debian linux.
