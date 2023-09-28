@@ -3,21 +3,27 @@
 
 As of the this writing, hashgen (Go) has the fastest md5 hash rate of any publicly available CPU based hash generator I've tested (this isn't a race, just an observation -- see benchmarks). These hashrates can be easily beat by improved code optimization and/or coding in faster programming languages.
 
-Hashgen is a CLI hash generator written in Go and can be cross compiled for Linux, Windows & Mac, although testing and compiling is mainly done on debian linux.
+Hashgen is a CLI hash generator written in Go and can be cross compiled for Linux, Raspberry Pi, Windows & Mac, although testing and compiling is mainly done on debian 12 linux.
 
 To use hashgen, type your mode, wordlist input & hash output files with a simple command line.
-
+```
+$ ./hashgen.bin -m md5 -w rockyou.txt -o /dev/null
+2023/08/19 20:04:15 Starting...
+2023/08/19 20:04:15 Processing file: wordlist/rockyou.txt
+2023/08/19 20:04:15 Hash function: md5
+2023/08/19 20:04:19 Finished hashing 15053568 lines in 3.760 sec (4.003 M lines/sec)
+```
 ### Features
 - Supports multiple hashing functions (see list below)
 - Encode & decode base64
 - Supports ASCII, UTF-8 and $HEX[] wordlist input
-- - Can also be used to dehex a wordlist by setting mode to "-m plaintext" which will output wordlist to UTF-8
+- - Can also be used to dehex a wordlist by setting mode to "-m plaintext" which will output wordlist to plaintext
 
 | Useage Examples | Command Line |
 |-----------|-----------|
 | read wordlist.txt, hash to md5 and write to output.txt | ./hashgen -m md5 -w wordlist.txt -o output.txt |
 | pipe wordlist into hashgen and write to stdout | cat wordlist.txt \| ./hashgen -m md5 |
-| dehex hex_wordlist to UTF-8 wordlist | ./hashgen -m plaintext -w hex_wordlist.txt -o wordlist.txt |
+| dehex hex_wordlist to plaintext wordlist | ./hashgen -m plaintext -w hex_wordlist.txt -o wordlist.txt |
 | bcrypt is very slow, but is POF | ./hashgen -m bcrypt -cost 8 -w wordlist.txt -o output.txt |
 
 ### Supported Functions
@@ -74,6 +80,7 @@ Note, bcrypt and especially argon2id modes are very slow (see benchmarks) and ar
 - v2023-03-28.1155-optimize; added "stdin"
 - v2023-05-13.0000-optimize; optimized code all hashing functions for better performance (version not released on github)
 - v2023-08-15.1900-hashplain; added: -hashplain flag for hash:plain output, support for $HEX[] wordlist, -cost flag for bcrypt, tweaked: write buffers & custom buffers for argon & bcrypt, tweaked logging outputs
+- v2023-08-16.1200-hashplain; added error correction to 'fix' improperly formatted $HEX[] lines
 
 ### thoughts
 - Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in several languages: python, php, C and Go. All versions are included in this github repository, although hashgen (Go) is the only maintained version as it includes more features and better performance. 
