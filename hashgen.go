@@ -44,9 +44,10 @@ import (
 // v2023-05-13.0000-optimize; optimized code all hashing functions for better performance
 // v2023-08-15.1900-hashplain; added: -hashplain flag for hash:plain output, support for $HEX[] wordlist, -cost flag for bcrypt, tweaked: write buffers & custom buffers for argon & bcrypt, tweaked logging outputs
 // v2023-08-16.1200-hashplain; added error correction to 'fix' improperly formatted $HEX[] lines
+// v2023-09-28.1730-hashplain; modify -hashplain flag to be encoding-agnostic
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2023-08-16.1200-hashplain")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2023-09-28.1730-hashplain")
 }
 
 // help function
@@ -91,7 +92,7 @@ func helpFunc() {
 }
 
 // dehex wordlist line
-func checkForHex(line string) string {
+func checkForHex(line string) (string, string) {
 	// check if line is in $HEX[] format
 	if strings.HasPrefix(line, "$HEX[") && strings.HasSuffix(line, "]") {
 		// find first '[' and last ']'
@@ -124,9 +125,9 @@ func checkForHex(line string) string {
 			}
 		}
 
-		return string(decoded) // return dehexed line
+		return string(decoded), "$HEX[" + hexContent + "]" // return dehexed line and formatted hex content
 	}
-	return line // return original line if not in $HEX[] format or if non-correctable error occurs
+	return line, line // return original line for both if not in $HEX[] format or if non-correctable error occurs
 }
 
 const (
@@ -298,7 +299,7 @@ func main() {
 			}
 			// bcrypt hash function <-- slow
 			for inputBuffer.Scan() {
-				line := checkForHex(inputBuffer.Text())
+				line, hexContent := checkForHex(inputBuffer.Text())
 				pwd := []byte(line)
 				hash, err := bcrypt.GenerateFromPassword(pwd, bcryptCost) // use dynamic cost
 				if err != nil {
@@ -306,7 +307,7 @@ func main() {
 				}
 				hashString := string(hash)
 				if hashPlainOutput {
-					outputBuffer.WriteString(hashString + ":" + line + "\n")
+					outputBuffer.WriteString(hashString + ":" + hexContent + "\n")
 				} else {
 					outputBuffer.WriteString(hashString + "\n")
 				}
@@ -322,7 +323,7 @@ func main() {
 				KeyLength:   32,
 			}
 			for inputBuffer.Scan() {
-				line := checkForHex(inputBuffer.Text())
+				line, hexContent := checkForHex(inputBuffer.Text())
 				hash, err := argon2id.CreateHash(line, params)
 				if err != nil {
 					log.Fatal(err)
@@ -331,7 +332,7 @@ func main() {
 				outputBuffer.WriteString(hash)
 				if hashPlainOutput {
 					outputBuffer.Write(colonSeparator)
-					outputBuffer.WriteString(line)
+					outputBuffer.WriteString(hexContent)
 				}
 				outputBuffer.Write(lineSeparator)
 				linesHashed++
@@ -350,14 +351,15 @@ func main() {
 				hash, _ = blake2s.New256(nil)
 			}
 			for inputBuffer.Scan() {
-				line := checkForHex(inputBuffer.Text())
+				line, hexContent := checkForHex(inputBuffer.Text())
 				lineByte := []byte(line)
+				hash.Reset() // Important: reset the hash before reusing it
 				hash.Write(lineByte)
 				hashValue := hex.EncodeToString(hash.Sum(nil))
 				outputBuffer.WriteString(hashValue)
 				if hashPlainOutput {
 					outputBuffer.Write(colonSeparator)
-					outputBuffer.WriteString(line)
+					outputBuffer.WriteString(hexContent)
 				}
 				outputBuffer.Write(lineSeparator)
 				linesHashed++
@@ -369,7 +371,7 @@ func main() {
 				table = crc64.MakeTable(crc64.ECMA) // create table once outside for loop to improve performance
 			}
 			for inputBuffer.Scan() {
-				line := checkForHex(inputBuffer.Text())
+				line, hexContent := checkForHex(inputBuffer.Text())
 				lineBytes := []byte(line)
 				var hashString string
 				if hashFunc == "crc32" {
@@ -382,7 +384,7 @@ func main() {
 				outputBuffer.WriteString(hashString)
 				if hashPlainOutput {
 					outputBuffer.Write(colonSeparator)
-					outputBuffer.WriteString(line)
+					outputBuffer.WriteString(hexContent)
 				}
 				outputBuffer.Write(lineSeparator)
 				linesHashed++
@@ -390,7 +392,7 @@ func main() {
 		} else if hashFunc == "base64encode" || hashFunc == "base64decode" {
 			// base64 encode/decode
 			for inputBuffer.Scan() {
-				line := checkForHex(inputBuffer.Text())
+				line, hexContent := checkForHex(inputBuffer.Text())
 				lineBytes := []byte(line)
 				var str string
 				if hashFunc == "base64encode" {
@@ -406,7 +408,7 @@ func main() {
 				outputBuffer.WriteString(str)
 				if hashFunc == "base64encode" && hashPlainOutput {
 					outputBuffer.Write(colonSeparator)
-					outputBuffer.WriteString(line)
+					outputBuffer.WriteString(hexContent)
 				}
 				outputBuffer.Write(lineSeparator)
 				linesHashed++
@@ -416,7 +418,7 @@ func main() {
 			hash := md4.New()
 			var input []uint16
 			for inputBuffer.Scan() {
-				line := checkForHex(inputBuffer.Text())
+				line, hexContent := checkForHex(inputBuffer.Text())
 				input = utf16.Encode([]rune(line))
 				hash.Reset()
 				if err := binary.Write(hash, binary.LittleEndian, input); err != nil {
@@ -426,7 +428,7 @@ func main() {
 				hashString := hex.EncodeToString(hashBytes)
 				outputBuffer.WriteString(hashString)
 				if hashPlainOutput {
-					outputBuffer.WriteString(":" + line)
+					outputBuffer.WriteString(":" + hexContent)
 				}
 				outputBuffer.Write(lineSeparator)
 				linesHashed++
@@ -434,15 +436,19 @@ func main() {
 		} else if hashFunc == "plaintext" {
 			// print plaintext
 			for inputBuffer.Scan() {
-				line := checkForHex(inputBuffer.Text())
+				line, hexContent := checkForHex(inputBuffer.Text())
 				outputBuffer.WriteString(line)
+				if hashPlainOutput {
+					outputBuffer.Write(colonSeparator)
+					outputBuffer.WriteString(hexContent)
+				}
 				outputBuffer.Write(lineSeparator)
 				linesHashed++
 			}
 		} else if hashFunc == "sha2-224" || hashFunc == "sha2-384" {
 			// sha hash functions
 			for inputBuffer.Scan() {
-				line := checkForHex(inputBuffer.Text())
+				line, hexContent := checkForHex(inputBuffer.Text())
 				lineBytes := []byte(line)
 				var hashString string
 				if hashFunc == "sha2-224" {
@@ -455,7 +461,7 @@ func main() {
 				outputBuffer.WriteString(hashString)
 				if hashPlainOutput {
 					outputBuffer.Write(colonSeparator)
-					outputBuffer.WriteString(line)
+					outputBuffer.WriteString(hexContent)
 				}
 				outputBuffer.Write(lineSeparator)
 				linesHashed++
@@ -463,7 +469,7 @@ func main() {
 		} else { // all other hash functions defined in switch
 			hashBuffer := make([]byte, h.Size()) // buffer for hash
 			for inputBuffer.Scan() {
-				line := checkForHex(inputBuffer.Text())
+				line, hexContent := checkForHex(inputBuffer.Text())
 				lineBytes := []byte(line)
 				h.Reset()
 				h.Write(lineBytes)
@@ -472,7 +478,7 @@ func main() {
 				outputBuffer.WriteString(hashString)
 				if hashPlainOutput {
 					outputBuffer.Write(colonSeparator)
-					outputBuffer.WriteString(line)
+					outputBuffer.WriteString(hexContent)
 				}
 				outputBuffer.Write(lineSeparator)
 				linesHashed++
@@ -481,7 +487,7 @@ func main() {
 
 		elapsedTime := time.Since(startTime)
 		runTime := float64(elapsedTime.Seconds())
-		linesPerSecond := float64(linesHashed) / elapsedTime.Seconds() * 0.000001 // convert to thousand hashes per second
+		linesPerSecond := float64(linesHashed) / elapsedTime.Seconds() * 0.000001
 		log.Printf("Finished hashing %d lines in %.3f sec (%.3f M lines/sec)\n", linesHashed, runTime, linesPerSecond)
 		done <- true
 	}()
