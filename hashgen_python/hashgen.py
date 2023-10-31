@@ -4,14 +4,16 @@ import sys
 import time
 import argparse
 import hashlib
+from multiprocessing import Pool, cpu_count
 
 # script by cyclone to generate hashes
 # requires python3 to be installed
 # tested with python v3.9.2 
-# version 2022-12-16.0900
-# version 2023-03-15.1445; updated github version to include all hashlib supported algo's, and add program flags for wordlist, algo, output file, version, help, etc
+# version 2022.12.16-0900
+# version 2023.03.15-1445; updated github version to include all hashlib supported algo's, and add program flags for wordlist, algo, output file, version, help, etc
+# version 2023.10.30-1615; added multiprocessing support; added write buffer
 
-PROGRAM_VERSION = "2023-03-15.1445"
+PROGRAM_VERSION = "2023.10.30-1615"
 
 def print_usage():
     print("Usage: python3 hashgen.py -w <wordlist_file> -m <hash_mode> -o <output_file>")
@@ -29,11 +31,19 @@ def print_algos():
     for algo in hashlib.algorithms_guaranteed:
         print(algo)
 
+def worker(args):
+    line, hash_mode = args
+    line = line.strip()
+    hash_object = hashlib.new(hash_mode)
+    hash_object.update(line.encode("utf-8"))
+    return hash_object.hexdigest()
+
 def main(args):
     if not args.wordlist_file or not args.hash_mode or not args.output_file:
         print("Error: Please provide wordlist_file, hash_mode, and output_file")
         print_usage()
         sys.exit(1)
+    
     wordlist_file = args.wordlist_file
     hash_mode = args.hash_mode
     output_file = args.output_file
@@ -45,23 +55,24 @@ def main(args):
     buffer_size = 10 * 1024 * 1024  # 10MB
 
     try:
-        with open(wordlist_file, "r", buffering=buffer_size) as input_handle, open(output_file, "w", buffering=buffer_size) as output_handle:
-            line_count = 0
+        num_processes = cpu_count()
+        with open(wordlist_file, 'r', buffering=buffer_size) as input_handle, \
+            open(output_file, 'w', buffering=buffer_size) as output_handle:
+            lines = [(line.strip(), hash_mode) for line in input_handle.readlines()]
+            
             start_time = time.time()
-
-            for line in input_handle:
-                line = line.strip()
-                hash_object = hashlib.new(hash_mode)
-                hash_object.update(line.encode("utf-8"))
-                hash_value = hash_object.hexdigest()
-                output_handle.write(f"{hash_value}\n")
-                line_count += 1
-
+            with Pool(processes=num_processes) as pool:
+                results = pool.map(worker, lines)
+                
+            for result in results:
+                output_handle.write(f"{result}\n")
+                
             end_time = time.time()
             elapsed_time = end_time - start_time
+            line_count = len(lines)
             hashes_per_second = line_count / elapsed_time
             hashes_per_second_million = hashes_per_second / 1_000_000
-
+                
             print(f"{line_count} lines processed in {elapsed_time:.3f} seconds ({hashes_per_second_million:.3f} million hashes per second)")
 
     except FileNotFoundError:

@@ -17,16 +17,16 @@
 // it took multiple revisions to get a 100% thread safe implementation of hashgen (C) that was still decently fast
 // in order to make hashgen (C) thread safe, a mutex-protected read/write buffer was implemented which slowed performance down to below hashgen (Go) and hashgen (php)
 // developing a multi-threaded, thread safe application in C makes me very appreciative of the power and simplicity of Go :)
-// v2023-03-18.1945; initial github release
-// v2023-03-27.1945; removed mutex locks for better performance
-// v2023-04-25.1020; handle memory allocations using malloc, count processed lines using atomic_size for thread safety
-// v2023-06-05.1810; default to stdin if -w not specified and stdout if -o not specified
+// v2023.03.18-1945; initial github release
+// v2023.03.27-1945; removed mutex locks for better performance
+// v2023.04.25-1020; handle memory allocations using malloc, count processed lines using atomic_size for thread safety
+// v2023.06.05-1810; default to stdin if -w not specified and stdout if -o not specified
 
 // todo -- probably won't happen any time soon as my focus is on hashgen(Go)
 // optimize code (C version is slower than Go)
 
 // program version
-#define PROGRAM_VERSION "v2023-06-05.1810"
+#define PROGRAM_VERSION "v2023.06.05-1810"
 
 // read / write buffer
 #define BUFFER_SIZE (10 * 1024 * 1024)
@@ -264,3 +264,5 @@ void main(int argc, char *argv[]) {
 
     return;
 }
+
+// end code

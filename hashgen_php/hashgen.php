@@ -4,10 +4,11 @@
 // script by cyclone to generate hashes
 // requires php to be installed (ex: sudo apt install php8.2 -y)
 // tested with php7.4 & php8.2
-// version 2022-12-16.0900; github release
-// version 2023-03-15.1445; updated github version to include all php supported algo's, and add program flags for wordlist, algo, output file, version, help, etc
+// version 2022.12.16-0900; github release
+// version 2023.03.15-1445; updated github version to include all php supported algo's, and add program flags for wordlist, algo, output file, version, help, etc
+// version 2023.10.30-1615; added write buffer; tweaked read buffer
 
-const PROGRAM_VERSION = '2023-03-15.1445';
+const PROGRAM_VERSION = '2023.10.30-1615';
 
 function print_usage() {
     echo "Usage: php hashgen.php -w <wordlist_file> -m <hash_mode> -o <output_file>\n";
@@ -66,61 +67,69 @@ function print_algos() {
 }
 
 function main(array $args) {
-    $wordlist_file = $args['wordlist_file'];
-    $hash_mode = $args['hash_mode'];
-    $output_file = $args['output_file'];
+  $wordlist_file = $args['wordlist_file'];
+  $hash_mode = $args['hash_mode'];
+  $output_file = $args['output_file'];
 
-    if (!in_array($hash_mode, hash_algos())) {
-        echo "Error: Unsupported hash mode. Supported modes are: " . implode(", ", hash_algos()) . "\n";
-        exit(1);
-    }
+  if (!in_array($hash_mode, hash_algos())) {
+      echo "Error: Unsupported hash mode. Supported modes are: " . implode(", ", hash_algos()) . "\n";
+      exit(1);
+  }
 
-    if (!file_exists($wordlist_file)) {
-        echo "Error: Wordlist file not found.\n";
-        exit(1);
-    }
+  if (!file_exists($wordlist_file)) {
+      echo "Error: Wordlist file not found.\n";
+      exit(1);
+  }
 
-    $input_handle = fopen($wordlist_file, 'r');
-    $output_handle = fopen($output_file, 'w');
+  $input_handle = fopen($wordlist_file, 'r');
+  $output_handle = fopen($output_file, 'w');
 
-    if ($input_handle === false || $output_handle === false) {
-        echo "Error: Unable to open file(s).\n";
-        exit(1);
-    }
+  if ($input_handle === false || $output_handle === false) {
+      echo "Error: Unable to open file(s).\n";
+      exit(1);
+  }
 
-    $buffer_size = 4 * 1024; // 4KB
-    $lines = [];
-    $current_buffer = "";
-    $line_count = 0;
-    $start_time = microtime(true);
+  $buffer_size = 64 * 1024; // 64KB
+  $lines = [];
+  $current_buffer = "";
+  $line_count = 0;
+  $start_time = microtime(true);
+  $write_buffer = '';
+  $buffer_limit = 1000; // lines to hold in buffer before writing
+  $current_buffer_count = 0;
 
-    while (!feof($input_handle)) {
-        $current_buffer .= fread($input_handle, $buffer_size);
-        $lines = explode("\n", $current_buffer);
-        $current_buffer = array_pop($lines);
+  while (!feof($input_handle)) {
+      $current_buffer .= fread($input_handle, $buffer_size);
+      $lines = explode("\n", $current_buffer);
+      $current_buffer = array_pop($lines);
 
-        foreach ($lines as $line) {
-            $hash = hash($hash_mode, trim($line));
-            fwrite($output_handle, $hash . "\n");
-            $line_count++;
-        }
-    }
+      foreach ($lines as $line) {
+          $hash = hash($hash_mode, trim($line));
+          $write_buffer .= $hash . "\n";
+          $line_count++;
+          $current_buffer_count++;
 
-    if (!empty($current_buffer)) {
-        $hash = hash($hash_mode, trim($current_buffer));
-        fwrite($output_handle, $hash . "\n");
-        $line_count++;
-    }
+          if ($current_buffer_count >= $buffer_limit) {
+              fwrite($output_handle, $write_buffer);
+              $write_buffer = '';
+              $current_buffer_count = 0;
+          }
+      }
+  }
 
-    fclose($input_handle);
-    fclose($output_handle);
+  if (!empty($write_buffer)) {
+      fwrite($output_handle, $write_buffer);
+  }
 
-    $end_time = microtime(true);
-    $elapsed_time = $end_time - $start_time;
-    $hashes_per_second = $line_count / $elapsed_time;
-    $hashes_per_second_million = $hashes_per_second / 1000000;
+  fclose($input_handle);
+  fclose($output_handle);
 
-    echo "{$line_count} lines processed in " . number_format($elapsed_time, 3) . " seconds (" . number_format($hashes_per_second_million, 3) . " million hashes per second)\n";
+  $end_time = microtime(true);
+  $elapsed_time = $end_time - $start_time;
+  $hashes_per_second = $line_count / $elapsed_time;
+  $hashes_per_second_million = $hashes_per_second / 1000000;
+
+  echo "{$line_count} lines processed in " . number_format($elapsed_time, 3) . " seconds (" . number_format($hashes_per_second_million, 3) . " million hashes per second)\n";
 }
 
 $arguments = parse_args($argv);

@@ -1,0 +1,13 @@
+[package]
+name = "hashgen"
+version = "2023.10.30"
+edition = "2021"
+
+[dependencies]
+crypto-hash = "0.3"
+rayon = "1.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

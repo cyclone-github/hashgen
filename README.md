@@ -61,7 +61,7 @@ Note, bcrypt and especially argon2id modes are very slow (see benchmarks) and ar
 
 ### Hash generator benchmarks
 - https://github.com/cyclone-github/hashgen/tree/main/benchmarks
-- In addition to hashgen (Go), I have also written hashgen in python, php and C, although hashgen (C) needs a lot of work to unlock its performance potential. 
+- In addition to hashgen (Go), I have also written hashgen in python, php, C, and Rust, although Rust and C need a lot of work to unlock their full performance potential.
 
 ### compile hashgen from source
 - If you want the latest hashgen features, compiling from source is the best option since the release version may run several revisions behind the source code.
