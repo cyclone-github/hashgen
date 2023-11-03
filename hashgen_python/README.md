@@ -1,6 +1,7 @@
-### hashgen (c)
+### hashgen (python)
 - this is a simplified version of hashgen written in python3
-- hashgen (Go) will remain my primary implementation of hashgen and I do not expect hashgen (Python) to be maintained
+- fun fact, python3 is the first language hashgen was written in
+- hashgen (go) will remain my primary implementation of hashgen and I do not expect hashgen (python) to be maintained
 
 ## usage example:
 - python3 hashgen.py -m md5 -w wordlist.txt -o output.txt
