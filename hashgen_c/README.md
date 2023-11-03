@@ -1,8 +1,9 @@
 ### hashgen (c)
-- this is a complete rewrite of hashgen in C
+- this is a complete (simplified) rewrite of hashgen in C
 - other than micro controller / embedded systems, I have little coding experience with C
-- hashgen (Go) will remain my primary implementation of hashgen and I do not expect hashgen (C) to be maintained
-- hashgen (C) uses openssl for all hashing functions
+- if you have a faster implimentation of hashgen in C, please contact me and I'll be glad to post your code!
+- hashgen (go) will remain my primary implementation of hashgen and I do not expect hashgen (c) to be maintained
+- uses openssl for all hashing functions
 
 ## usage example:
 - ./hashgen.bin -m md5 -w wordlist.txt -o output.txt

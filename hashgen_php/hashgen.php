@@ -4,11 +4,11 @@
 // script by cyclone to generate hashes
 // requires php to be installed (ex: sudo apt install php8.2 -y)
 // tested with php7.4 & php8.2
-// version 2022.12.16-0900; github release
-// version 2023.03.15-1445; updated github version to include all php supported algo's, and add program flags for wordlist, algo, output file, version, help, etc
-// version 2023.10.30-1615; added write buffer; tweaked read buffer
+// v2022-12-16.0900; github release
+// v2023-03-15.1445; updated github version to include all php supported algo's, and add program flags for wordlist, algo, output file, version, help, etc
+// v2023-10-30.1615; added write buffer; tweaked read buffer
 
-const PROGRAM_VERSION = '2023.10.30-1615';
+const PROGRAM_VERSION = '2023-10-30.1615';
 
 function print_usage() {
     echo "Usage: php hashgen.php -w <wordlist_file> -m <hash_mode> -o <output_file>\n";

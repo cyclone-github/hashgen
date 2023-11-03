@@ -12,7 +12,7 @@ this is my first attempt with Rust, so bare with me
 hashgen(Go) will remain my primary implementation of hashgen and I do not expect hashgen(Rust) to be maintained
 
 version history
-v2023.10.30-1615; initial github release
+v2023-10-30.1615; initial github release
 
 todo -- probably won't happen any time soon as my focus is on hashgen(Go)
 optimize code & hashing functions

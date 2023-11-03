@@ -1,17 +1,19 @@
-# hashgen (Go) - Cyclone's hash generator
-![image](https://i.imgur.com/n11gZHM.png)
+# hashgen (go) - Cyclone's hash generator
+![image](https://i.imgur.com/Pqade6k.png)
 
-As of the this writing, hashgen (Go) has the fastest md5 hash rate of any publicly available CPU based hash generator I've tested (this isn't a race, just an observation -- see benchmarks). These hashrates can be easily beat by improved code optimization and/or coding in faster programming languages.
+**As of the this writing, hashgen (go) has a 2,519% faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** While this is extremely fast, these hashrates can be beat by improved code optimization and/or coding in faster programming languages (I'm looking at you C, Rust and Zig!).
+
+Since version `v2023-10-30.1600`, hashgen has a top recorded hasharate of 30,228,048 md5/sec on the test rig's Ryzen 7 3700X CPU! Much faster hashrates have been seen on higher end CPU's.
 
 Hashgen is a CLI hash generator written in Go and can be cross compiled for Linux, Raspberry Pi, Windows & Mac, although testing and compiling is mainly done on debian 12 linux.
 
 To use hashgen, type your mode, wordlist input & hash output files with a simple command line.
 ```
-$ ./hashgen.bin -m md5 -w rockyou.txt -o /dev/null
-2023/08/19 20:04:15 Starting...
-2023/08/19 20:04:15 Processing file: wordlist/rockyou.txt
-2023/08/19 20:04:15 Hash function: md5
-2023/08/19 20:04:19 Finished hashing 15053568 lines in 3.760 sec (4.003 M lines/sec)
+$ ./hashgen_amd64.bin -m 0 -w rockyou.txt -o /dev/null
+2023/11/02 19:10:51 Starting...
+2023/11/02 19:10:51 Processing file: rockyou.txt
+2023/11/02 19:10:51 Hash function: 0
+2023/11/02 19:10:52 Finished hashing 15053568 lines in 0.500 sec (30.123 M lines/sec)
 ```
 ### Features
 - Supports multiple hashing functions (see list below)
@@ -27,7 +29,7 @@ $ ./hashgen.bin -m md5 -w rockyou.txt -o /dev/null
 | bcrypt is very slow, but is POF | ./hashgen -m bcrypt -cost 8 -w wordlist.txt -o output.txt |
 
 ### Supported Functions
-
+_Note, not all hash modes have been implemented in v2023-10-30.1600_
 | Function: | Hashcat Mode: |
 |-----------|-----------|
 | argon2id | |
@@ -57,16 +59,21 @@ $ ./hashgen.bin -m md5 -w rockyou.txt -o /dev/null
 | sha3-384 | 17400 |
 | sha3-512 | 17400  |
 
-Note, bcrypt and especially argon2id modes are very slow (see benchmarks) and are only included as a POC.
+_bcrypt and especially argon2id modes are very slow (see benchmarks) and are only included as a POC_
 
 ### Hash generator benchmarks
 - https://github.com/cyclone-github/hashgen/tree/main/benchmarks
-- In addition to hashgen (Go), I have also written hashgen in python, php, C, and Rust, although Rust and C need a lot of work to unlock their full performance potential.
+- In addition to hashgen (go), I have also written hashgen in python, php, C, and Rust, although Rust and C need a lot of work to unlock their full performance potential. If you speak C or Rust, I'd be curious to see how fast you can push hashgen!
 
 ### compile hashgen from source
 - If you want the latest hashgen features, compiling from source is the best option since the release version may run several revisions behind the source code.
 - Compile from source code info:
 - https://github.com/cyclone-github/scripts/blob/main/intro_to_go.txt
+
+### thoughts
+- Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in several languages: python, php, Go, C and Rust. All versions are included in this github repository, although hashgen (go) is the only maintained version as it includes more features and better performance. 
+- Why write hashgen in Go instead of xyz language? I did this to push my Go coding skills while also seeing how fast I could push Go. During early testing, I was not expecting hashgen to be all that fast, but I have been pleasantly surprised!
+- When I realized hashgen (go) was competitively fast compared to other publicly available hash generators, I decided to publish hashgen's code and binaries for others to use. I've really enjoyed this project and I hope you find it useful.
 
 ### version history
 - v2022-12-15.2030; initial github release
@@ -81,8 +88,4 @@ Note, bcrypt and especially argon2id modes are very slow (see benchmarks) and ar
 - v2023-05-13.0000-optimize; optimized code all hashing functions for better performance (version not released on github)
 - v2023-08-15.1900-hashplain; added: -hashplain flag for hash:plain output, support for $HEX[] wordlist, -cost flag for bcrypt, tweaked: write buffers & custom buffers for argon & bcrypt, tweaked logging outputs
 - v2023-08-16.1200-hashplain; added error correction to 'fix' improperly formatted $HEX[] lines
-
-### thoughts
-- Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in several languages: python, php, C and Go. All versions are included in this github repository, although hashgen (Go) is the only maintained version as it includes more features and better performance. 
-- Why write hashgen in Go instead of xyz language? I did this to push my Go coding skills while also seeing how fast I could push Go. During early testing, I was not expecting hashgen to be all that fast, but I have been pleasantly surprised... and there is still a lot of room for improvement.
-- When I realized hashgen (Go) was competitively fast compared to other publicly available hash generators, I decided to publish hashgen's code and binaries for others to use. I've really enjoyed this project and I hope you find it useful. 
+- v2023-10-30.1600-threaded; rewrote code base for multi-threading support, some algos have not been implemented from previous version
