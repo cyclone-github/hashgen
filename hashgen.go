@@ -15,6 +15,8 @@ import (
 	"golang.org/x/crypto/md4"
 	"golang.org/x/crypto/ripemd160"
 	"golang.org/x/crypto/sha3"
+	"hash/crc32"
+	"hash/crc64"
 	"io"
 	"log"
 	"os"
@@ -43,10 +45,11 @@ v2023-08-15.1900-hashplain; added: -hashplain flag for hash:plain output, suppor
 v2023-08-16.1200-hashplain; added error correction to 'fix' improperly formatted $HEX[] lines
 v2023-09-28.1730-hashplain; modify -hashplain flag to be encoding-agnostic
 v2023-10-30.1600-threaded; rewrote code base for multi-threading support, some algos have not been implemented from previous version
+v2023-11-03.2200-threaded; added hashcat 11500 (CRC32 w/padding), re-added CRC32 / CRC64, fix stdin
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2023-10-30.1600-threaded")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2023-11-03.2030-threaded")
 }
 
 // help function
@@ -69,8 +72,9 @@ func helpFunc() {
 		//"blake2b-256\n" +
 		//"blake2b-384\n" +
 		//"blake2b-512 \t 600\n" +
-		//"crc32 \t\t 11500\n" +
-		//"crc64\n" +
+		"crc32\n" +
+		"11500\t\t (hashcat compatible CRC32)\n" +
+		"crc64\n" +
 		"md4 \t\t 900\n" +
 		"md5 \t\t 0\n" +
 		"ntlm \t\t 1000\n" +
@@ -169,6 +173,23 @@ func hashString(hashFunc string, str string) string {
 		h := sha3.New512()
 		h.Write([]byte(str))
 		return hex.EncodeToString(h.Sum(nil))
+	case "11500": // hashcat compatible crc32 mode
+		h := crc32.ChecksumIEEE([]byte(str))
+		b := make([]byte, 4)
+		binary.BigEndian.PutUint32(b, h)
+		hashString := hex.EncodeToString(b)
+		return hashString + ":00000000"
+	case "crc32":
+		h := crc32.ChecksumIEEE([]byte(str))
+		b := make([]byte, 4)
+		binary.BigEndian.PutUint32(b, h)
+		return hex.EncodeToString(b)
+	case "crc64":
+		table := crc64.MakeTable(crc64.ECMA)
+		h := crc64.Checksum([]byte(str), table)
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, h)
+		return hex.EncodeToString(b)
 	case "ntlm", "1000":
 		h := md4.New()
 		input := utf16.Encode([]rune(str))
@@ -227,16 +248,29 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 	readChunks := make(chan []byte, 1000) // channel for reading chunks of data
 	writeData := make(chan string, 1000)  // channel for writing processed data
 
-	file, err := os.Open(inputFile)
-	if err != nil {
-		log.Printf("Error opening file:\n", err)
-		return
+	// determine input source
+	var file *os.File
+	var err error
+	if inputFile == "" {
+		file = os.Stdin // default to stdin if no input flag is provided
+	} else {
+		file, err = os.Open(inputFile)
+		if err != nil {
+			log.Printf("Error opening file: %v\n", err)
+			return
+		}
+		defer file.Close()
 	}
-	defer file.Close()
 
+	// print start stats
 	log.Println("Starting...")
-	log.Println("Processing file:", inputFile)
+	if inputFile != "" {
+		log.Println("Processing file:", inputFile)
+	} else {
+		log.Println("Reading from stdin...")
+	}
 	log.Println("Hash function:", hashFunc)
+	log.Println("CPU Threads:", numGoroutines)
 
 	startTime := time.Now()
 
