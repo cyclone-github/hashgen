@@ -1,18 +1,21 @@
 # Benchmarks
  
 ### Latest Version: 
-- hashgen v2023-10-30.1600 
+- hashgen v2023-11-04.0945-threaded
 - Test rig specs:
   - OS: Linux pve 6.2.16-14-pve (Debian 12.1)
   - CPU: AMD Ryzen 7 3700X 8-Core (16 Thread) Processor @ 3600MHz
   - RAM: 64gb DDR4
-- Benchmarks for all 14 supported modes:
+- Benchmarks for all 17 supported modes:
 
 | Mode  | h/s |
 | ------------- | ------------- | 
 | plaintext | 50,178,560 |
 | base64encode | 40,036,085 |
+| crc64 | 39,824,254 |
+| crc32 | 39,304,355 |
 | base64decode | 37,823,035 |
+| crc32 (-m 11500) | 37,077,754 |
 | md5 | 30,228,048 |
 | sha2-256 | 24,319,173 |
 | sha1 | 23,818,937 |
