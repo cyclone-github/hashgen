@@ -45,11 +45,11 @@ v2023-08-15.1900-hashplain; added: -hashplain flag for hash:plain output, suppor
 v2023-08-16.1200-hashplain; added error correction to 'fix' improperly formatted $HEX[] lines
 v2023-09-28.1730-hashplain; modify -hashplain flag to be encoding-agnostic
 v2023-10-30.1600-threaded; rewrote code base for multi-threading support, some algos have not been implemented from previous version
-v2023-11-03.2200-threaded; added hashcat 11500 (CRC32 w/padding), re-added CRC32 / CRC64, fix stdin
+v2023-11-04.0945-threaded; added hashcat 11500 (CRC32 w/padding), re-added CRC32 / CRC64, fix stdin
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2023-11-03.2030-threaded")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2023-11-04.0945-threaded")
 }
 
 // help function
@@ -174,11 +174,12 @@ func hashString(hashFunc string, str string) string {
 		h.Write([]byte(str))
 		return hex.EncodeToString(h.Sum(nil))
 	case "11500": // hashcat compatible crc32 mode
+		const hcCRCPad = ":00000000"
 		h := crc32.ChecksumIEEE([]byte(str))
 		b := make([]byte, 4)
 		binary.BigEndian.PutUint32(b, h)
 		hashString := hex.EncodeToString(b)
-		return hashString + ":00000000"
+		return hashString + hcCRCPad
 	case "crc32":
 		h := crc32.ChecksumIEEE([]byte(str))
 		b := make([]byte, 4)
