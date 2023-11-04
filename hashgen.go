@@ -29,27 +29,21 @@ import (
 )
 
 /*
+hashgen is a CLI hash generator which can be cross compiled for Linux, Raspberry Pi, Windows & Mac
+https://github.com/cyclone-github/hashgen
+written by cyclone
+
+GNU General Public License v2.0
+https://github.com/cyclone-github/hashgen/blob/main/LICENSE
+
 version history
-v2022-12-15.2030; initial release
-v2022-12-16.1800; fixed ntlm hash function, tweaked -w flag to be less restrictive, clean up code
-v2022-12-17.2100; fixed typo in wordlist tag, added '-m plaintext' output mode (prints -w wordlist file to stdout)
-v2022-12-20.1200; cleaned up bcrypt code
-v2022-12-20.1430-goroutine; complete rewrite using goroutines & read/write buffers
-v2022-12-21.1400-goroutine; added multiple new algo's including hashcat mode equivalents
-v2022-12-23.1200-goroutine; added argon2id (very slow), added sync / wait group for future use, change h/s readout from millions to thousands,
-v2022-12-24.1800-optimize; optimized all hashing functions, tweaked buffer size
-v2023-03-15.0900-optimize; added "stdout", fixed "lines/sec" to show "M lines/sec", tweaked output buffer for stdout, tweaked sha2xxx flags to allow "shaxxx", ex: "sha512"
-v2023-03-28.1155-optimize; added "stdin"
-v2023-05-13.0000-optimize; optimized code all hashing functions for better performance
-v2023-08-15.1900-hashplain; added: -hashplain flag for hash:plain output, support for $HEX[] wordlist, -cost flag for bcrypt, tweaked: write buffers & custom buffers for argon & bcrypt, tweaked logging outputs
-v2023-08-16.1200-hashplain; added error correction to 'fix' improperly formatted $HEX[] lines
-v2023-09-28.1730-hashplain; modify -hashplain flag to be encoding-agnostic
 v2023-10-30.1600-threaded; rewrote code base for multi-threading support, some algos have not been implemented from previous version
-v2023-11-04.0945-threaded; added hashcat 11500 (CRC32 w/padding), re-added CRC32 / CRC64, fix stdin
+v2023-11-03.2200-threaded; added hashcat -m 11500 (CRC32 w/padding), re-added CRC32 / CRC64, fixed stdin
+v2023-11-04.1330-threaded; tweaked -m 11500, tweaked HEX error correction and added reporting when encountering HEX decoding errors
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2023-11-04.0945-threaded")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2023-11-04.1330-threaded")
 }
 
 // help function
@@ -96,119 +90,138 @@ func helpFunc() {
 }
 
 // dehex wordlist line
-func checkForHex(line string) (string, string) {
+/* note:
+the checkForHex() function below gives a best effort in decoding all HEX strings and applies error correction when needed
+if your wordlist contains HEX strings that resemble alphabet soup, don't be surprised if you find "garbage in" still means "garbage out"
+the best way to fix HEX decoding issues is to correctly parse your wordlists so you don't end up with foobar HEX strings
+if you have suggestions on how to better handle HEX decoding errors, contact me on github
+*/
+func checkForHex(line string) ([]byte, string, int) {
 	// check if line is in $HEX[] format
-	if strings.HasPrefix(line, "$HEX[") && strings.HasSuffix(line, "]") {
+	if strings.HasPrefix(line, "$HEX[") {
+		// attempt to correct improperly formatted $HEX[] entries
+		// if it doesn't end with "]", add the missing bracket
+		var hexErrorDetected int
+		if !strings.HasSuffix(line, "]") {
+			line += "]"          // add missing trailing "]"
+			hexErrorDetected = 1 // mark as error since the format was corrected
+		}
+
 		// find first '[' and last ']'
 		startIdx := strings.Index(line, "[")
 		endIdx := strings.LastIndex(line, "]")
 		hexContent := line[startIdx+1 : endIdx]
 
-		decoded, err := hex.DecodeString(hexContent)
+		// decode hex content into bytes
+		decodedBytes, err := hex.DecodeString(hexContent)
 		// error handling
 		if err != nil {
-			// remove blank spaces
-			hexContent = strings.ReplaceAll(hexContent, " ", "")
+			hexErrorDetected = 1 // mark as error since there was an issue decoding
 
-			// remove invalid hex characters
-			hexContent = strings.Map(func(r rune) rune {
+			// remove blank spaces and invalid hex characters
+			cleanedHexContent := strings.Map(func(r rune) rune {
 				if strings.ContainsRune("0123456789abcdefABCDEF", r) {
 					return r
 				}
 				return -1 // remove invalid hex character
 			}, hexContent)
 
-			// if hex has odd length, add zero nibble
-			if len(hexContent)%2 != 0 {
-				hexContent = "0" + hexContent
+			// if hex has an odd length, add a zero nibble to make it even
+			if len(cleanedHexContent)%2 != 0 {
+				cleanedHexContent = "0" + cleanedHexContent
 			}
 
-			decoded, err = hex.DecodeString(hexContent)
+			decodedBytes, err = hex.DecodeString(cleanedHexContent)
 			if err != nil {
 				log.Printf("Error decoding $HEX[] content: %v", err)
+				// if decoding still fails, return original line as bytes
+				return []byte(line), line, hexErrorDetected
 			}
 		}
 
-		return string(decoded), "$HEX[" + hexContent + "]" // return dehexed line and formatted hex content
+		// return decoded bytes and formatted hex content
+		return decodedBytes, "$HEX[" + hexContent + "]", hexErrorDetected
 	}
-	return line, line // return original line for both if not in $HEX[] format or if non-correctable error occurs
+	// return original line as bytes if not in $HEX[] format
+	return []byte(line), line, 0
 }
 
 // supported hash algos
-func hashString(hashFunc string, str string) string {
+func hashBytes(hashFunc string, data []byte) string {
 	switch hashFunc {
 	case "md4", "900":
 		h := md4.New()
-		h.Write([]byte(str))
+		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	case "md5", "0":
-		h := md5.Sum([]byte(str))
+		h := md5.Sum(data)
 		return hex.EncodeToString(h[:])
 	case "sha1", "100":
-		h := sha1.Sum([]byte(str))
+		h := sha1.Sum(data)
 		return hex.EncodeToString(h[:])
 	case "sha2-256", "sha2_256", "sha2256", "sha256", "1400":
-		h := sha256.Sum256([]byte(str))
+		h := sha256.Sum256(data)
 		return hex.EncodeToString(h[:])
 	case "sha2-512", "sha2_512", "sha2512", "sha512", "1700":
-		h := sha512.Sum512([]byte(str))
+		h := sha512.Sum512(data)
 		return hex.EncodeToString(h[:])
 	case "ripemd-160", "ripemd_160", "ripemd160", "6000":
 		h := ripemd160.New()
-		h.Write([]byte(str))
+		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	case "sha3-224", "sha3_224", "sha3224", "17300":
 		h := sha3.New224()
-		h.Write([]byte(str))
+		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	case "sha3-256", "sha3_256", "sha3256", "17400":
 		h := sha3.New256()
-		h.Write([]byte(str))
+		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	case "sha3-384", "sha3_384", "sha3384", "17500":
 		h := sha3.New384()
-		h.Write([]byte(str))
+		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	case "sha3-512", "sha3_512", "sha3512", "17600":
 		h := sha3.New512()
-		h.Write([]byte(str))
+		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	case "11500": // hashcat compatible crc32 mode
 		const hcCRCPad = ":00000000"
-		h := crc32.ChecksumIEEE([]byte(str))
+		h := crc32.ChecksumIEEE(data)
 		b := make([]byte, 4)
 		binary.BigEndian.PutUint32(b, h)
 		hashString := hex.EncodeToString(b)
 		return hashString + hcCRCPad
 	case "crc32":
-		h := crc32.ChecksumIEEE([]byte(str))
+		h := crc32.ChecksumIEEE(data)
 		b := make([]byte, 4)
 		binary.BigEndian.PutUint32(b, h)
 		return hex.EncodeToString(b)
 	case "crc64":
 		table := crc64.MakeTable(crc64.ECMA)
-		h := crc64.Checksum([]byte(str), table)
+		h := crc64.Checksum(data, table)
 		b := make([]byte, 8)
 		binary.BigEndian.PutUint64(b, h)
 		return hex.EncodeToString(b)
 	case "ntlm", "1000":
 		h := md4.New()
-		input := utf16.Encode([]rune(str))
+		input := utf16.Encode([]rune(string(data))) // Convert byte slice to string, then to rune slice
 		if err := binary.Write(h, binary.LittleEndian, input); err != nil {
 			panic("Failed NTLM hashing")
 		}
 		hashBytes := h.Sum(nil)
 		return hex.EncodeToString(hashBytes)
 	case "base64encode", "base64-e", "base64e":
-		return base64.StdEncoding.EncodeToString([]byte(str))
+		return base64.StdEncoding.EncodeToString(data)
 	case "base64decode", "base64-d", "base64d":
-		decodedStr, err := base64.StdEncoding.DecodeString(str)
+		decodedBytes := make([]byte, base64.StdEncoding.DecodedLen(len(data)))
+		n, err := base64.StdEncoding.Decode(decodedBytes, data)
 		if err != nil {
 			return "Invalid Base64 string"
 		}
-		return string(decodedStr)
+		return string(decodedBytes[:n]) // Convert the decoded bytes to a string
 	case "plaintext", "plain", "99999":
-		return str
+		return string(data) // Convert byte slice to string
 	default:
 		log.Printf("--> Invalid hash function: %s <--\n", hashFunc)
 		helpFunc()
@@ -218,19 +231,20 @@ func hashString(hashFunc string, str string) string {
 }
 
 // process wordlist chunks
-func processChunk(chunk []byte, count *int64, hashFunc string, writer *bufio.Writer, hashPlainOutput bool) {
+func processChunk(chunk []byte, count *int64, hexErrorCount *int64, hashFunc string, writer *bufio.Writer, hashPlainOutput bool) {
 	reader := bytes.NewReader(chunk)
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
-		decodedLine, hexContent := checkForHex(line)
-		hash := hashString(hashFunc, decodedLine)
+		decodedBytes, hexContent, hexErrCount := checkForHex(line)
+		hash := hashBytes(hashFunc, decodedBytes)
 		writer.WriteString(hash)
 		if hashPlainOutput {
 			writer.WriteString(":" + hexContent)
 		}
 		writer.WriteString("\n")
-		atomic.AddInt64(count, 1) // thread safe counter
+		atomic.AddInt64(count, 1)                          // line count
+		atomic.AddInt64(hexErrorCount, int64(hexErrCount)) // hex error count
 	}
 	writer.Flush()
 }
@@ -245,6 +259,7 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 	var procWg sync.WaitGroup
 	var readWg sync.WaitGroup
 	var writeWg sync.WaitGroup
+	var hexDecodeErrors int64 = 0 // hex error counter
 
 	readChunks := make(chan []byte, 1000) // channel for reading chunks of data
 	writeData := make(chan string, 1000)  // channel for writing processed data
@@ -317,7 +332,7 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 			for chunk := range readChunks {
 				localBuffer := bytes.NewBuffer(nil)
 				writer := bufio.NewWriterSize(localBuffer, writeBufferSize)
-				processChunk(chunk, &linesHashed, hashFunc, writer, hashPlainOutput)
+				processChunk(chunk, &linesHashed, &hexDecodeErrors, hashFunc, writer, hashPlainOutput)
 				writer.Flush()
 				writeData <- localBuffer.String()
 			}
@@ -357,6 +372,9 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 	elapsedTime := time.Since(startTime)
 	runTime := float64(elapsedTime.Seconds())
 	linesPerSecond := float64(linesHashed) / elapsedTime.Seconds() * 0.000001
+	if hexDecodeErrors > 0 {
+		log.Printf("HEX decode errors: %d\n", hexDecodeErrors)
+	}
 	log.Printf("Finished hashing %d lines in %.3f sec (%.3f M lines/sec)\n", linesHashed, runTime, linesPerSecond)
 }
 
