@@ -1,6 +1,12 @@
 # hashgen (go) - Cyclone's hash generator
-![image](https://i.imgur.com/Pqade6k.png)
-
+```
+$ ./hashgen_amd64.bin -m 0 -w rockyou.txt -o /dev/null
+2023/11/02 19:10:51 Starting...
+2023/11/02 19:10:51 Processing file: rockyou.txt
+2023/11/02 19:10:51 Hash function: 0
+2023/11/02 19:10:51 CPU Threads: 16
+2023/11/02 19:10:52 Finished hashing 15053568 lines in 0.500 sec (30.123 M lines/sec)
+```
 **As of the this writing, hashgen (go) has a 2,519% faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** While this is extremely fast, these hashrates can be beat by improved code optimization and/or coding in faster programming languages (I'm looking at you C, Rust and Zig!).
 
 Since version `v2023-10-30.1600`, hashgen has a top recorded hasharate of 30,228,048 md5/sec on the test rig's Ryzen 7 3700X CPU! Much faster hashrates have been seen on higher end CPU's.
@@ -8,13 +14,7 @@ Since version `v2023-10-30.1600`, hashgen has a top recorded hasharate of 30,228
 Hashgen is a CLI hash generator written in Go and can be cross compiled for Linux, Raspberry Pi, Windows & Mac, although testing and compiling is mainly done on debian 12 linux.
 
 To use hashgen, type your mode, wordlist input & hash output files with a simple command line.
-```
-$ ./hashgen_amd64.bin -m 0 -w rockyou.txt -o /dev/null
-2023/11/02 19:10:51 Starting...
-2023/11/02 19:10:51 Processing file: rockyou.txt
-2023/11/02 19:10:51 Hash function: 0
-2023/11/02 19:10:52 Finished hashing 15053568 lines in 0.500 sec (30.123 M lines/sec)
-```
+
 ### Features
 - Supports multiple hashing functions (see list below)
 - Encode & decode base64
@@ -29,7 +29,7 @@ $ ./hashgen_amd64.bin -m 0 -w rockyou.txt -o /dev/null
 | bcrypt is very slow, but is POF | ./hashgen -m bcrypt -cost 8 -w wordlist.txt -o output.txt |
 
 ### Supported Functions
-_Note, not all hash modes have been implemented in v2023-10-30.1600_
+_Note, not all hash modes have been implemented in v2023-11-04.0945_
 | Function: | Hashcat Mode: |
 |-----------|-----------|
 | argon2id | |
@@ -40,6 +40,7 @@ _Note, not all hash modes have been implemented in v2023-10-30.1600_
 | blake2b-384 | |
 | blake2b-512 | 600 |
 | blake2s-256 | |
+| crc32 | (standard CRC32) |
 | crc32 | 11500 |
 | crc64 | |
 | md4 | 900 |
@@ -89,3 +90,4 @@ _bcrypt and especially argon2id modes are very slow (see benchmarks) and are onl
 - v2023-08-15.1900-hashplain; added: -hashplain flag for hash:plain output, support for $HEX[] wordlist, -cost flag for bcrypt, tweaked: write buffers & custom buffers for argon & bcrypt, tweaked logging outputs
 - v2023-08-16.1200-hashplain; added error correction to 'fix' improperly formatted $HEX[] lines
 - v2023-10-30.1600-threaded; rewrote code base for multi-threading support, some algos have not been implemented from previous version
+- v2023-11-04.0945-threaded; added hashcat 11500 (CRC32 w/padding), re-added CRC32 / CRC64, fix stdin
