@@ -63,7 +63,7 @@ _Note, not all hash modes have been implemented in v2023-11-04.0945_
 _bcrypt and especially argon2id modes are very slow (see benchmarks) and are only included as a POC_
 
 ### Hash generator benchmarks
-- https://github.com/cyclone-github/hashgen/tree/main/benchmarks
+- https://github.com/cyclone-github/hashgen-testing/tree/main/benchmarks
 - In addition to hashgen (go), I have also written hashgen in python, php, C, and Rust, although Rust and C need a lot of work to unlock their full performance potential. If you speak C or Rust, I'd be curious to see how fast you can push hashgen!
 
 ### compile hashgen from source
@@ -75,19 +75,3 @@ _bcrypt and especially argon2id modes are very slow (see benchmarks) and are onl
 - Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in several languages: python, php, Go, C and Rust. All versions are included in this github repository, although hashgen (go) is the only maintained version as it includes more features and better performance. 
 - Why write hashgen in Go instead of xyz language? I did this to push my Go coding skills while also seeing how fast I could push Go. During early testing, I was not expecting hashgen to be all that fast, but I have been pleasantly surprised!
 - When I realized hashgen (go) was competitively fast compared to other publicly available hash generators, I decided to publish hashgen's code and binaries for others to use. I've really enjoyed this project and I hope you find it useful.
-
-### version history
-- v2022-12-15.2030; initial github release
-- v2022-12-16.1800; fixed ntlm hash function, tweaked -w flag to be less restrictive, clean up code
-- v2022-12-17.2100; fixed typo in wordlist tag, added '-m plaintext' output mode (prints -w wordlist file to stdout)
-- v2022-12-20.1200; cleaned up bcrypt code
-- v2022-12-20.1430-goroutine; complete rewrite using goroutines & read/write buffers
-- v2022-12-21.1400-goroutine; added multiple new algo's including hashcat mode equivalents
-- v2022-12-24.1800-optimize; optimized all hashing functions, tweaked buffer size
-- v2023-03-15.0900-optimize; added "stdout", edited "lines/sec" to show "M lines/sec", tweaked output buffer for stdout, tweaked sha2xxx flags
-- v2023-03-28.1155-optimize; added "stdin"
-- v2023-05-13.0000-optimize; optimized code all hashing functions for better performance (version not released on github)
-- v2023-08-15.1900-hashplain; added: -hashplain flag for hash:plain output, support for $HEX[] wordlist, -cost flag for bcrypt, tweaked: write buffers & custom buffers for argon & bcrypt, tweaked logging outputs
-- v2023-08-16.1200-hashplain; added error correction to 'fix' improperly formatted $HEX[] lines
-- v2023-10-30.1600-threaded; rewrote code base for multi-threading support, some algos have not been implemented from previous version
-- v2023-11-04.0945-threaded; added hashcat 11500 (CRC32 w/padding), re-added CRC32 / CRC64, fix stdin
