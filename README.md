@@ -51,12 +51,16 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 ### Benchmarks:
 - https://github.com/cyclone-github/hashgen-testing/tree/main/benchmarks
 - In addition to hashgen (go), I have also written hashgen in python, php, C, and Rust, although Rust and C need a lot of work to unlock their full performance potential. If you speak C or Rust, I'd be curious to see how fast you can push hashgen!
-  - https://github.com/cyclone-github/hashgen-testing/tree/main
+  - https://github.com/cyclone-github/hashgen-testing
 
 ### Compile hashgen from source:
 - If you want the latest hashgen features, compiling from source is the best option since the release version may run several revisions behind the source code.
 - Compile from source code info:
   - https://github.com/cyclone-github/scripts/blob/main/intro_to_go.txt
+
+### Antivirus False Positives:
+- Several antivirus programs on VirusTotal incorrectly detect hashgen as a false positive. This issue primarily affects the Windows executable binary, but is not limited to it. I recommend every user carefully review hashgen's source code, then proceed to compile the binary themselves.
+- If you find hashgen helpful, please upload your compiled hashgen binaries to https://virustotal.com and/or https://virusscan.jotti.org. Additionally, leaving an upvote or a comment on Virus Total would be helpful.
 
 ### Thoughts:
 - Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in several languages: python, php, Go, C and Rust. While the actively maintained version is hashgen (go), which offers enhanced features and superior performance, the "hashgen-testing" repository linked below contains testing versions of hashgen in different programming languages:
