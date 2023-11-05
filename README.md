@@ -59,11 +59,12 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
   - https://github.com/cyclone-github/scripts/blob/main/intro_to_go.txt
 
 ### Antivirus False Positives:
-- Several antivirus programs on VirusTotal incorrectly detect hashgen as a false positive. This issue primarily affects the Windows executable binary, but is not limited to it. I recommend every user carefully review hashgen's source code, then proceed to compile the binary themselves.
-- If you find hashgen helpful, please upload your compiled hashgen binaries to https://virustotal.com and/or https://virusscan.jotti.org. Additionally, leaving an upvote or a comment on Virus Total would be helpful.
+- Several antivirus programs on VirusTotal incorrectly detect hashgen as a false positive. This issue primarily affects the Windows executable binary, but is not limited to it. If this concerns you, I recommend carefully reviewing hashgen's source code, then proceed to compile the binary yourself.
+- Uploading your compiled hashgen binaries to https://virustotal.com and leaving an upvote or a comment would be helpful.
 
 ### Thoughts:
 - Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in several languages: python, php, Go, C and Rust. While the actively maintained version is hashgen (go), which offers enhanced features and superior performance, the "hashgen-testing" repository linked below contains testing versions of hashgen in different programming languages:
   - https://github.com/cyclone-github/hashgen-testing
 - Why write hashgen in Go instead of xyz language? I did this to push my Go coding skills while also seeing how fast I could push Go. During early testing, I was not expecting hashgen to be all that fast, but I have been pleasantly surprised!
 - When I realized hashgen (go) was competitively fast compared to other publicly available hash generators, I decided to publish hashgen's code and binaries for others to use. I've really enjoyed this project and I hope you find it useful.
+- If you found hashgen to be helpful, please consider giving this repository a star!
