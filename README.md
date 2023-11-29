@@ -57,6 +57,12 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 - If you want the latest hashgen features, compiling from source is the best option since the release version may run several revisions behind the source code.
 - Compile from source code info:
   - https://github.com/cyclone-github/scripts/blob/main/intro_to_go.txt
+ 
+### Mentions:
+- Go Package Documentation: https://pkg.go.dev/github.com/cyclone-github/hashgen
+- Hashcat Wiki: https://hashcat.net/wiki/
+- Hashkiller Forum: https://forum.hashkiller.io/index.php?threads/cyclone-hashgen.63140/
+- Softpedia: https://www.softpedia.com/get/System/File-Management/hashgen-go.shtml
 
 ### Antivirus False Positives:
 - Several antivirus programs on VirusTotal incorrectly detect hashgen as a false positive. This issue primarily affects the Windows executable binary, but is not limited to it. If this concerns you, I recommend carefully reviewing hashgen's source code, then proceed to compile the binary yourself.
