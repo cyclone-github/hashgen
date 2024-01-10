@@ -1,4 +1,4 @@
-# hashgen (go) - Cyclone's hash generator
+# hashgen - Cyclone's hash generator
 ```
 $ ./hashgen_amd64.bin -m 0 -w rockyou.txt -o /dev/null
 2023/11/02 19:10:51 Starting...
@@ -54,8 +54,14 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
   - https://github.com/cyclone-github/hashgen-testing
 
 ### Compile hashgen from source:
-- If you want the latest hashgen features, compiling from source is the best option since the release version may run several revisions behind the source code.
-- Compile from source code info:
+- If you want the latest features, compiling from source is the best option since the release version may run several revisions behind the source code.
+- This assumes you have Go and Git installed
+  - `git clone https://github.com/cyclone-github/hashgen.git`
+  - `cd hashgen`
+  - `go mod init hashgen`
+  - `go mod tidy`
+  - `go build -ldflags="-s -w" hashgen.go`
+- Compile from source code how-to:
   - https://github.com/cyclone-github/scripts/blob/main/intro_to_go.txt
  
 ### Mentions:
