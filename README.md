@@ -1,3 +1,4 @@
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=cyclone-github&repo=hashgen&theme=gruvbox)](https://github.com/cyclone-github/)
 # hashgen - Cyclone's hash generator
 ```
 $ ./hashgen_amd64.bin -m 0 -w rockyou.txt -o /dev/null
