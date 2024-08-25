@@ -12,9 +12,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"golang.org/x/crypto/md4"
-	"golang.org/x/crypto/ripemd160"
-	"golang.org/x/crypto/sha3"
 	"hash/crc32"
 	"hash/crc64"
 	"io"
@@ -26,6 +23,10 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode/utf16"
+
+	"golang.org/x/crypto/md4"
+	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/crypto/sha3"
 )
 
 /*
@@ -37,13 +38,23 @@ GNU General Public License v2.0
 https://github.com/cyclone-github/hashgen/blob/main/LICENSE
 
 version history
-v2023-10-30.1600-threaded; rewrote code base for multi-threading support, some algos have not been implemented from previous version
-v2023-11-03.2200-threaded; added hashcat -m 11500 (CRC32 w/padding), re-added CRC32 / CRC64, fixed stdin
-v2023-11-04.1330-threaded; tweaked -m 11500, tweaked HEX error correction and added reporting when encountering HEX decoding errors
+v2023-10-30.1600-threaded;
+	rewrote code base for multi-threading support
+	some algos have not been implemented from previous version
+v2023-11-03.2200-threaded;
+	added hashcat -m 11500 (CRC32 w/padding)
+	re-added CRC32 / CRC64 modes
+	fixed stdin
+v2023-11-04.1330-threaded;
+	tweaked -m 11500
+	tweaked HEX error correction
+	added reporting when encountering HEX decoding errors
+v2024-08-24.2000-threaded;
+	added mode "morsecode" which follows ITU-R M.1677-1 standard
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2023-11-04.1330-threaded")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2024-08-24.2000-threaded")
 }
 
 // help function
@@ -66,6 +77,7 @@ func helpFunc() {
 		//"blake2b-256\n" +
 		//"blake2b-384\n" +
 		//"blake2b-512 \t 600\n" +
+		"morsecode\t (ITU-R M.1677-1)\n" +
 		"crc32\n" +
 		"11500\t\t (hashcat compatible CRC32)\n" +
 		"crc64\n" +
@@ -146,9 +158,58 @@ func checkForHex(line string) ([]byte, string, int) {
 	return []byte(line), line, 0
 }
 
-// supported hash algos
+// ITU-R M.1677-1 standard morse code mapping
+// https://www.itu.int/dms_pubrec/itu-r/rec/m/R-REC-M.1677-1-200910-I!!PDF-E.pdf
+// both upper and lowercase alpha were included due to using byte arrays for speed optimization
+var morseCodeMap = map[byte]string{
+	// lowercase alpha
+	'a': ".-", 'b': "-...", 'c': "-.-.", 'd': "-..", 'e': ".",
+	'f': "..-.", 'g': "--.", 'h': "....", 'i': "..", 'j': ".---",
+	'k': "-.-", 'l': ".-..", 'm': "--", 'n': "-.", 'o': "---",
+	'p': ".--.", 'q': "--.-", 'r': ".-.", 's': "...", 't': "-",
+	'u': "..-", 'v': "...-", 'w': ".--", 'x': "-..-", 'y': "-.--",
+	'z': "--..",
+	// uppercase alpha
+	'A': ".-", 'B': "-...", 'C': "-.-.", 'D': "-..", 'E': ".",
+	'F': "..-.", 'G': "--.", 'H': "....", 'I': "..", 'J': ".---",
+	'K': "-.-", 'L': ".-..", 'M': "--", 'N': "-.", 'O': "---",
+	'P': ".--.", 'Q': "--.-", 'R': ".-.", 'S': "...", 'T': "-",
+	'U': "..-", 'V': "...-", 'W': ".--", 'X': "-..-", 'Y': "-.--",
+	'Z': "--..",
+	// digits
+	'0': "-----", '1': ".----", '2': "..---", '3': "...--", '4': "....-",
+	'5': ".....", '6': "-....", '7': "--...", '8': "---..", '9': "----.",
+	// special char
+	'.': ".-.-.-", ',': "--..--", '?': "..--..", '\'': ".----.", '!': "-.-.--",
+	'/': "-..-.", '(': "-.--.", ')': "-.--.-", '&': ".-...", ':': "---...",
+	';': "-.-.-.", '=': "-...-", '+': ".-.-.", '-': "-....-", '_': "..--.-",
+	'"': ".-..-.", '$': "...-..-", '@': ".--.-.", ' ': " ",
+	// procedural signs were intentionally omitted
+}
+
+// encode byte slice to Morse Code
+func encodeToMorseBytes(input []byte) []byte {
+	var encoded bytes.Buffer
+	for _, char := range input {
+		if code, exists := morseCodeMap[char]; exists {
+			encoded.WriteString(code)
+			encoded.WriteByte(' ') // add space after each Morse Code sequence
+		}
+	}
+
+	// remove trailing space
+	result := encoded.Bytes()
+	if len(result) > 0 && result[len(result)-1] == ' ' {
+		return result[:len(result)-1]
+	}
+	return result
+}
+
+// supported hash algos / modes
 func hashBytes(hashFunc string, data []byte) string {
 	switch hashFunc {
+	case "morsecode":
+		return string(encodeToMorseBytes(data))
 	case "md4", "900":
 		h := md4.New()
 		h.Write(data)
@@ -205,7 +266,7 @@ func hashBytes(hashFunc string, data []byte) string {
 		return hex.EncodeToString(b)
 	case "ntlm", "1000":
 		h := md4.New()
-		input := utf16.Encode([]rune(string(data))) // Convert byte slice to string, then to rune slice
+		input := utf16.Encode([]rune(string(data))) // convert byte slice to string, then to rune slice
 		if err := binary.Write(h, binary.LittleEndian, input); err != nil {
 			panic("Failed NTLM hashing")
 		}
@@ -219,9 +280,9 @@ func hashBytes(hashFunc string, data []byte) string {
 		if err != nil {
 			return "Invalid Base64 string"
 		}
-		return string(decodedBytes[:n]) // Convert the decoded bytes to a string
+		return string(decodedBytes[:n]) // convert the decoded bytes to a string
 	case "plaintext", "plain", "99999":
-		return string(data) // Convert byte slice to string
+		return string(data) // convert byte slice to string
 	default:
 		log.Printf("--> Invalid hash function: %s <--\n", hashFunc)
 		helpFunc()
@@ -375,7 +436,7 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 	if hexDecodeErrors > 0 {
 		log.Printf("HEX decode errors: %d\n", hexDecodeErrors)
 	}
-	log.Printf("Finished hashing %d lines in %.3f sec (%.3f M lines/sec)\n", linesHashed, runTime, linesPerSecond)
+	log.Printf("Finished processing %d lines in %.3f sec (%.3f M lines/sec)\n", linesHashed, runTime, linesPerSecond)
 }
 
 // main func
@@ -408,7 +469,7 @@ func main() {
 		helpFunc()
 	}
 
-	runtime.GOMAXPROCS(runtime.NumCPU()) // Use all available CPUs
+	runtime.GOMAXPROCS(runtime.NumCPU()) // Use all available CPU threads
 
 	startProc(*hashFunc, *inputFile, *outputFile, *hashPlainOutput)
 }

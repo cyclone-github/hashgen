@@ -8,7 +8,7 @@ $ ./hashgen_amd64.bin -m 0 -w rockyou.txt -o /dev/null
 2023/11/02 19:10:51 CPU Threads: 16
 2023/11/02 19:10:52 Finished hashing 15053568 lines in 0.500 sec (30.123 M lines/sec)
 ```
-**As of the this writing, hashgen (go) has a 2,519% faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** While this is extremely fast, these hashrates can be beat by improved code optimization and/or coding in faster programming languages (I'm looking at you C, Rust and Zig!).
+**As of the this writing, hashgen (go) has a 2,519% faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** While this is extremely fast, these hashrates can be beat by improved code optimization and/or coding in faster programming languages (I'm looking at you C, Rust and Zig).
 
 Since version `v2023-10-30.1600`, hashgen has a top recorded hasharate of 30,228,048 md5/sec on the test rig's Ryzen 7 3700X CPU! Much faster hashrates have been seen on higher end CPU's.
 
@@ -33,6 +33,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 |-----------|-----------|
 | base64encode | |
 | base64decode | |
+| morsecode | (ITU-R M.1677-1) |
 | crc32 | |
 | 11500 | 11500 (hashcat compatible CRC32) |
 | crc64 |  |
