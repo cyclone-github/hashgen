@@ -51,8 +51,9 @@ v2023-11-04.1330-threaded;
 	added reporting when encountering HEX decoding errors
 v2024-08-24.2000-threaded;
 	added mode "morsecode" which follows ITU-R M.1677-1 standard
-v2024-11-01.1530-threaded;
-	added thread flag "-t" to allow user to specity CPU threads, ex: -t 16
+v2024-11-01.1630-threaded;
+	added thread flag "-t" to allow user to specity CPU threads, ex: -t 16 // fixed default to use max CPU threads
+	added modes: sha2-224, sha2-384, sha2-512-224, sha2-512-256, keccak-256, keccak-512
 */
 
 func versionFunc() {
@@ -89,16 +90,20 @@ func helpFunc() {
 		"plaintext \t 99999 \t (can be used to dehex wordlist)\n" +
 		"ripemd-160 \t 6000\n" +
 		"sha1 \t\t 100\n" +
-		//"sha2-224 \t 1300\n" +
-		//"sha2-384 \t 10800\n" +
+		"sha2-224 \t 1300\n" +
+		"sha2-384 \t 10800\n" +
 		"sha2-256 \t 1400\n" +
 		"sha2-512 \t 1700\n" +
-		//"sha2-512-224\n" +
-		//"sha2-512-256\n" +
+		"sha2-512-224\n" +
+		"sha2-512-256\n" +
 		"sha3-224 \t 17300\n" +
 		"sha3-256 \t 17400\n" +
 		"sha3-384 \t 17500\n" +
-		"sha3-512 \t 17600\n"
+		"sha3-512 \t 17600\n" +
+		//"keccak-224\t 17700\n" +
+		"keccak-256\t 17800\n" +
+		//"keccak-384\t 17900\n" +
+		"keccak-512\t 18000\n"
 	fmt.Fprintln(os.Stderr, str)
 	os.Exit(0)
 }
@@ -222,12 +227,28 @@ func hashBytes(hashFunc string, data []byte) string {
 	case "sha1", "100":
 		h := sha1.Sum(data)
 		return hex.EncodeToString(h[:])
+	case "sha2-224", "sha2_224", "sha2224", "sha224", "1300":
+		h := sha256.New224()
+		h.Write(data)
+		return hex.EncodeToString(h.Sum(nil))
 	case "sha2-256", "sha2_256", "sha2256", "sha256", "1400":
 		h := sha256.Sum256(data)
 		return hex.EncodeToString(h[:])
+	case "sha2-384", "sha384", "10800":
+		h := sha512.New384()
+		h.Write(data)
+		return hex.EncodeToString(h.Sum(nil))
 	case "sha2-512", "sha2_512", "sha2512", "sha512", "1700":
 		h := sha512.Sum512(data)
 		return hex.EncodeToString(h[:])
+	case "sha2-512-224", "sha512_224", "sha512224":
+		h := sha512.New512_224()
+		h.Write(data)
+		return hex.EncodeToString(h.Sum(nil))
+	case "sha2-512-256", "sha512_256", "sha512256":
+		h := sha512.New512_256()
+		h.Write(data)
+		return hex.EncodeToString(h.Sum(nil))
 	case "ripemd-160", "ripemd_160", "ripemd160", "6000":
 		h := ripemd160.New()
 		h.Write(data)
@@ -246,6 +267,14 @@ func hashBytes(hashFunc string, data []byte) string {
 		return hex.EncodeToString(h.Sum(nil))
 	case "sha3-512", "sha3_512", "sha3512", "17600":
 		h := sha3.New512()
+		h.Write(data)
+		return hex.EncodeToString(h.Sum(nil))
+	case "keccak-256", "keccak256", "17800":
+		h := sha3.NewLegacyKeccak256()
+		h.Write(data)
+		return hex.EncodeToString(h.Sum(nil))
+	case "keccak-512", "keccak512", "18000":
+		h := sha3.NewLegacyKeccak512()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	case "11500": // hashcat compatible crc32 mode
@@ -479,7 +508,7 @@ func main() {
 
 	// thread sanity check (can't use <= 0 or > available CPU threads)
 	if numThreads <= 0 {
-		numThreads = 1
+		numThreads = maxThreads
 	} else if numThreads > maxThreads {
 		numThreads = maxThreads
 	}
