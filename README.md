@@ -35,20 +35,26 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | base64decode | |
 | morsecode | (ITU-R M.1677-1) |
 | crc32 | |
-| 11500 | 11500 (hashcat compatible CRC32) |
-| crc64 |  |
+| 11500 | 11500 (hashcat compatible CRC32)|
+| crc64 | |
 | md4 | 900 |
 | md5 | 0 |
-| ntlm | 1000 |
+| ntlm| 1000|
 | plaintext | 99999 (can be used to dehex wordlist) |
-| ripemd-160 | 6000 |
-| sha1 | 100 |
-| sha2-256 | 1400 |
-| sha2-512 | 1700 |
-| sha3-224 | 17300 |
-| sha3-256 | 17400 |
-| sha3-384 | 17500 |
-| sha3-512 | 17600 |
+| ripemd-160| 6000|
+| sha1| 100 |
+| sha2-224| 1300|
+| sha2-256| 1400|
+| sha2-384| 10800 |
+| sha2-512| 1700|
+| sha2-512-224| |
+| sha2-512-256| |
+| sha3-224| 17300 |
+| sha3-256| 17400 |
+| sha3-384| 17500 |
+| sha3-512| 17600 |
+| keccak-256| 17800 |
+| keccak-512| 18000 |
 
 ### Benchmarks:
 - https://github.com/cyclone-github/hashgen-testing/tree/main/benchmarks

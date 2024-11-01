@@ -57,7 +57,7 @@ v2024-11-01.1630-threaded;
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2024-11-01.1530-threaded")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2024-11-01.1630-threaded")
 }
 
 // help function
