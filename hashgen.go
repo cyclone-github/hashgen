@@ -51,10 +51,12 @@ v2023-11-04.1330-threaded;
 	added reporting when encountering HEX decoding errors
 v2024-08-24.2000-threaded;
 	added mode "morsecode" which follows ITU-R M.1677-1 standard
+v2024-11-01.1530-threaded;
+	added thread flag "-t" to allow user to specity CPU threads, ex: -t 16
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2024-08-24.2000-threaded")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2024-11-01.1530-threaded")
 }
 
 // help function
@@ -266,6 +268,8 @@ func hashBytes(hashFunc string, data []byte) string {
 		return hex.EncodeToString(b)
 	case "ntlm", "1000":
 		h := md4.New()
+		// convert byte slice to string assuming UTF-8, then encode as UTF-16LE
+		// this may not work as expected if plaintext contains non-ASCII/UTF-8 encoding
 		input := utf16.Encode([]rune(string(data))) // convert byte slice to string, then to rune slice
 		if err := binary.Write(h, binary.LittleEndian, input); err != nil {
 			panic("Failed NTLM hashing")
@@ -311,10 +315,9 @@ func processChunk(chunk []byte, count *int64, hexErrorCount *int64, hashFunc str
 }
 
 // process logic
-func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOutput bool) {
+func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOutput bool, numGoroutines int) {
 	const readBufferSize = 1024 * 1024         // read buffer
 	const writeBufferSize = 2 * readBufferSize // write buffer (larger than read buffer)
-	numGoroutines := runtime.NumCPU()          // use all available CPU threads
 
 	var linesHashed int64 = 0
 	var procWg sync.WaitGroup
@@ -445,6 +448,7 @@ func main() {
 	inputFile := flag.String("w", "", "Input file to process (use 'stdin' to read from standard input)")
 	outputFile := flag.String("o", "", "Output file to write hashes to (use 'stdout' to print to console)")
 	hashPlainOutput := flag.Bool("hashplain", false, "Enable hashplain output (hash:plain)")
+	threads := flag.Int("t", 0, "Number of CPU threads to use")
 	version := flag.Bool("version", false, "Program version:")
 	cyclone := flag.Bool("cyclone", false, "hashgen")
 	help := flag.Bool("help", false, "Prints help:")
@@ -469,9 +473,20 @@ func main() {
 		helpFunc()
 	}
 
-	runtime.GOMAXPROCS(runtime.NumCPU()) // Use all available CPU threads
+	// determine CPU threads to use
+	numThreads := *threads
+	maxThreads := runtime.NumCPU()
 
-	startProc(*hashFunc, *inputFile, *outputFile, *hashPlainOutput)
+	// thread sanity check (can't use <= 0 or > available CPU threads)
+	if numThreads <= 0 {
+		numThreads = 1
+	} else if numThreads > maxThreads {
+		numThreads = maxThreads
+	}
+
+	runtime.GOMAXPROCS(numThreads) // set CPU threads
+
+	startProc(*hashFunc, *inputFile, *outputFile, *hashPlainOutput, numThreads)
 }
 
 // base64 decode function used for displaying encoded messages
