@@ -71,6 +71,9 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
   - `go build -ldflags="-s -w" hashgen.go`
 - Compile from source code how-to:
   - https://github.com/cyclone-github/scripts/blob/main/intro_to_go.txt
+
+### Change Log:
+- https://github.com/cyclone-github/hashgen/blob/main/CHANGELOG.md
  
 ### Mentions:
 - Go Package Documentation: https://pkg.go.dev/github.com/cyclone-github/hashgen

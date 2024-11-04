@@ -54,10 +54,14 @@ v2024-08-24.2000-threaded;
 v2024-11-01.1630-threaded;
 	added thread flag "-t" to allow user to specity CPU threads, ex: -t 16 // fixed default to use max CPU threads
 	added modes: sha2-224, sha2-384, sha2-512-224, sha2-512-256, keccak-256, keccak-512
+v2024-11-04.1445-threaded;
+	fixed https://github.com/cyclone-github/hashgen/issues/5
+	added CPU threaded info to -help
+	cleaned up code and print functions
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2024-11-01.1630-threaded")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2024-11-04.1445-threaded")
 }
 
 // help function
@@ -68,9 +72,10 @@ func helpFunc() {
 		//"./hashgen -m bcrypt -cost 8 -w wordlist.txt\n" +
 		"cat wordlist | ./hashgen -m md5 -hashplain\n" +
 		//"\nSupported Options:\n-m {mode} -w {wordlist} -o {output_file} -hashplain {generates hash:plain pairs} -cost {bcrypt}\n" +
-		"\nSupported Options:\n-m {mode} -w {wordlist} -o {output_file} -hashplain {generates hash:plain pairs}\n" +
+		"\nSupported Options:\n-m {mode} -w {wordlist} -t {cpu threads} -o {output_file} -hashplain {generates hash:plain pairs}\n" +
 		"\nIf -w is not specified, defaults to stdin\n" +
 		"If -o is not specified, defaults to stdout\n" +
+		"If -t is not specified, defaults to max available CPU threads\n" +
 		"\nModes:\t\tHashcat Mode Equivalent:\n" +
 		//"\nargon2id (very slow!)\n" +
 		"base64encode\n" +
@@ -311,7 +316,8 @@ func hashBytes(hashFunc string, data []byte) string {
 		decodedBytes := make([]byte, base64.StdEncoding.DecodedLen(len(data)))
 		n, err := base64.StdEncoding.Decode(decodedBytes, data)
 		if err != nil {
-			return "Invalid Base64 string"
+			fmt.Fprintln(os.Stderr, "Invalid Base64 string")
+			return ""
 		}
 		return string(decodedBytes[:n]) // convert the decoded bytes to a string
 	case "plaintext", "plain", "99999":
@@ -319,7 +325,7 @@ func hashBytes(hashFunc string, data []byte) string {
 	default:
 		log.Printf("--> Invalid hash function: %s <--\n", hashFunc)
 		helpFunc()
-		os.Exit(0)
+		os.Exit(1)
 		return ""
 	}
 }
@@ -396,7 +402,7 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 				break
 			}
 			if err != nil {
-				fmt.Println(os.Stderr, "Error reading chunk:", err)
+				fmt.Fprintln(os.Stderr, "Error reading chunk:", err)
 				return
 			}
 			// logic to split chunks properly
@@ -440,7 +446,7 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 		if outputPath != "" {
 			outFile, err := os.Create(outputPath)
 			if err != nil {
-				fmt.Println(os.Stderr, "Error creating output file:", err)
+				fmt.Fprintln(os.Stderr, "Error creating output file:", err)
 				return
 			}
 			defer outFile.Close()
@@ -489,7 +495,12 @@ func main() {
 		os.Exit(0)
 	}
 	if *cyclone {
-		funcBase64Decode("Q29kZWQgYnkgY3ljbG9uZSA7KQo=")
+		decodedStr, err := base64.StdEncoding.DecodeString("Q29kZWQgYnkgY3ljbG9uZSA7KQo=")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "--> Cannot decode base64 string. <--")
+			os.Exit(1)
+		}
+		fmt.Fprintln(os.Stderr, string(decodedStr))
 		os.Exit(0)
 	}
 	if *help {
@@ -516,16 +527,6 @@ func main() {
 	runtime.GOMAXPROCS(numThreads) // set CPU threads
 
 	startProc(*hashFunc, *inputFile, *outputFile, *hashPlainOutput, numThreads)
-}
-
-// base64 decode function used for displaying encoded messages
-func funcBase64Decode(line string) {
-	str, err := base64.StdEncoding.DecodeString(line)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "--> Text doesn't appear to be base64 encoded. <--")
-		os.Exit(0)
-	}
-	fmt.Fprintf(os.Stderr, "%s\n", str)
 }
 
 // end code
