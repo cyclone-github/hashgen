@@ -1,12 +1,19 @@
-[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=cyclone-github&repo=hashgen&theme=gruvbox)](https://github.com/cyclone-github/)
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=cyclone-github&repo=hashgen&theme=gruvbox)](https://github.com/cyclone-github/hashgen/)
+
+[![Go Report Card](https://goreportcard.com/badge/github.com/cyclone-github/hashgen)](https://goreportcard.com/report/github.com/cyclone-github/hashgen)
+[![GitHub issues](https://img.shields.io/github/issues/cyclone-github/hashgen.svg)](https://github.com/cyclone-github/hashgen/issues)
+[![License](https://img.shields.io/github/license/cyclone-github/hashgen.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/release/cyclone-github/hashgen.svg)](https://github.com/cyclone-github/hashgen/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/cyclone-github/hashgen.svg)](https://pkg.go.dev/github.com/cyclone-github/hashgen)
+
 # hashgen - Cyclone's hash generator
 ```
 $ ./hashgen_amd64.bin -m 0 -w rockyou.txt -o /dev/null
-2023/11/02 19:10:51 Starting...
-2023/11/02 19:10:51 Processing file: rockyou.txt
-2023/11/02 19:10:51 Hash function: 0
-2023/11/02 19:10:51 CPU Threads: 16
-2023/11/02 19:10:52 Finished hashing 15053568 lines in 0.500 sec (30.123 M lines/sec)
+2024/12/10 19:07:31 Starting...
+2024/12/10 19:07:31 Processing file: rockyou.txt
+2024/12/10 19:07:31 Hash function: 0
+2024/12/10 19:07:31 CPU Threads: 16
+2024/12/10 19:07:31 Finished processing 14344391 lines in 0.475 sec (30.228 M lines/sec)
 ```
 **As of the this writing, hashgen (go) has a 2,519% faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** While this is extremely fast, these hashrates can be beat by improved code optimization and/or coding in faster programming languages (I'm looking at you C, Rust and Zig).
 
@@ -72,13 +79,14 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 - Compile from source code how-to:
   - https://github.com/cyclone-github/scripts/blob/main/intro_to_go.txt
 
-### Change Log:
+### Changelog:
 - https://github.com/cyclone-github/hashgen/blob/main/CHANGELOG.md
  
 ### Mentions:
 - Go Package Documentation: https://pkg.go.dev/github.com/cyclone-github/hashgen
-- Hashcat Wiki: https://hashcat.net/wiki/
-- Hashkiller Forum: https://forum.hashkiller.io/index.php?threads/cyclone-hashgen.63140/
+- hashcat wiki: https://hashcat.net/wiki/
+- hashkiller forum: https://forum.hashkiller.io/index.php?threads/cyclone-hashgen.63140/
+- hashpwn forum: https://forum.hashpwn.net/post/89
 - Softpedia: https://www.softpedia.com/get/System/File-Management/hashgen-go.shtml
 
 ### Antivirus False Positives:

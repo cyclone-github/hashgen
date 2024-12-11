@@ -58,10 +58,12 @@ v2024-11-04.1445-threaded;
 	fixed https://github.com/cyclone-github/hashgen/issues/5
 	added CPU threaded info to -help
 	cleaned up code and print functions
+v1.0.0; 2024-12-10
+    v1.0.0 release
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v2024-11-04.1445-threaded")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.0.0; 2024-12-10")
 }
 
 // help function

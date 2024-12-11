@@ -1,3 +1,7 @@
+### v1.0.0; 2024-12-10
+```
+v1.0.0 release
+```
 ### v2024-11-04.1445-threaded
 ```
 fixed https://github.com/cyclone-github/hashgen/issues/5
