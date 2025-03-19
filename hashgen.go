@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/md5"
+	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -24,6 +25,9 @@ import (
 	"time"
 	"unicode/utf16"
 
+	"github.com/btcsuite/btcutil/base58"
+	"golang.org/x/crypto/argon2"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/md4"
 	"golang.org/x/crypto/ripemd160"
 	"golang.org/x/crypto/sha3"
@@ -60,10 +64,12 @@ v2024-11-04.1445-threaded;
 	cleaned up code and print functions
 v1.0.0; 2024-12-10
     v1.0.0 release
+v1.1.0; 2025-03-19
+    added modes: base58, argon2id, bcrypt w/custom cost factor
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.0.0; 2024-12-10")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.0; 2025-03-19")
 }
 
 // help function
@@ -71,18 +77,19 @@ func helpFunc() {
 	versionFunc() // some algos are commented out due to not being implemented into this package
 	str := "\nExample Usage:\n" +
 		"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n" +
-		//"./hashgen -m bcrypt -cost 8 -w wordlist.txt\n" +
+		"./hashgen -m bcrypt -cost 8 -w wordlist.txt\n" +
 		"cat wordlist | ./hashgen -m md5 -hashplain\n" +
-		//"\nSupported Options:\n-m {mode} -w {wordlist} -o {output_file} -hashplain {generates hash:plain pairs} -cost {bcrypt}\n" +
-		"\nSupported Options:\n-m {mode} -w {wordlist} -t {cpu threads} -o {output_file} -hashplain {generates hash:plain pairs}\n" +
+		"\nSupported Options:\n-m {mode} -w {wordlist} -t {cpu threads} -o {output_file} -hashplain {generates hash:plain pairs} -cost {bcrypt}\n" +
 		"\nIf -w is not specified, defaults to stdin\n" +
 		"If -o is not specified, defaults to stdout\n" +
 		"If -t is not specified, defaults to max available CPU threads\n" +
 		"\nModes:\t\tHashcat Mode Equivalent:\n" +
-		//"\nargon2id (very slow!)\n" +
+		"\nargon2id \t(very slow!)\n" +
+		"base58encode\n" +
+		"base58decode\n" +
 		"base64encode\n" +
 		"base64decode\n" +
-		//"bcrypt \t\t 3200\n" +
+		"bcrypt \t\t 3200 (very slow!)\n" +
 		//"blake2s-256\n" +
 		//"blake2b-256\n" +
 		//"blake2b-384\n" +
@@ -220,70 +227,112 @@ func encodeToMorseBytes(input []byte) []byte {
 }
 
 // supported hash algos / modes
-func hashBytes(hashFunc string, data []byte) string {
+func hashBytes(hashFunc string, data []byte, cost int) string {
 	switch hashFunc {
-	case "morsecode":
+	// argon2id
+	case "argon2id", "argon2", "argon":
+		salt := make([]byte, 16) // random 16-byte salt
+		if _, err := rand.Read(salt); err != nil {
+			fmt.Fprintln(os.Stderr, "Error generating salt:", err)
+			return ""
+		}
+		// use default argon2id parameters
+		t := uint32(4)       // time (iterations)
+		m := uint32(65536)   // memory cost in KiB
+		p := uint8(1)        // parallelism (number of threads)
+		keyLen := uint32(16) // key length in bytes
+		key := argon2.IDKey(data, salt, t, m, p, keyLen)
+		saltB64 := base64.RawStdEncoding.EncodeToString(salt)
+		keyB64 := base64.RawStdEncoding.EncodeToString(key)
+		return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", m, t, p, saltB64, keyB64)
+	// bcrypt -m 3200
+	case "bcrypt", "3200":
+		hashed, err := bcrypt.GenerateFromPassword(data, cost)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "bcrypt error:", err)
+			return ""
+		}
+		return string(hashed)
+	// morsecode
+	case "morsecode", "morse":
 		return string(encodeToMorseBytes(data))
+	// md4 -m 900
 	case "md4", "900":
 		h := md4.New()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// md5 -m 0
 	case "md5", "0":
 		h := md5.Sum(data)
 		return hex.EncodeToString(h[:])
+	// sha1 -m 100
 	case "sha1", "100":
 		h := sha1.Sum(data)
 		return hex.EncodeToString(h[:])
+	// sha2-224 -m 1300
 	case "sha2-224", "sha2_224", "sha2224", "sha224", "1300":
 		h := sha256.New224()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// sha2-256 -m 1400
 	case "sha2-256", "sha2_256", "sha2256", "sha256", "1400":
 		h := sha256.Sum256(data)
 		return hex.EncodeToString(h[:])
+	// sha2-384 -m 10800
 	case "sha2-384", "sha384", "10800":
 		h := sha512.New384()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// sha2-512 -m 1700
 	case "sha2-512", "sha2_512", "sha2512", "sha512", "1700":
 		h := sha512.Sum512(data)
 		return hex.EncodeToString(h[:])
+	// sha2-512-224
 	case "sha2-512-224", "sha512_224", "sha512224":
 		h := sha512.New512_224()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// sha2-512-256
 	case "sha2-512-256", "sha512_256", "sha512256":
 		h := sha512.New512_256()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// ripemd-160 -m 6000
 	case "ripemd-160", "ripemd_160", "ripemd160", "6000":
 		h := ripemd160.New()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// sha3-224 -m 17300
 	case "sha3-224", "sha3_224", "sha3224", "17300":
 		h := sha3.New224()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// sha3-256 om 17400
 	case "sha3-256", "sha3_256", "sha3256", "17400":
 		h := sha3.New256()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// sha3-384 om 17500
 	case "sha3-384", "sha3_384", "sha3384", "17500":
 		h := sha3.New384()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// sha3-512 om 17600
 	case "sha3-512", "sha3_512", "sha3512", "17600":
 		h := sha3.New512()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// keccak-256 -m 17800
 	case "keccak-256", "keccak256", "17800":
 		h := sha3.NewLegacyKeccak256()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// keccak-512 -m 18000
 	case "keccak-512", "keccak512", "18000":
 		h := sha3.NewLegacyKeccak512()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// crc32 -m 11500
 	case "11500": // hashcat compatible crc32 mode
 		const hcCRCPad = ":00000000"
 		h := crc32.ChecksumIEEE(data)
@@ -291,17 +340,20 @@ func hashBytes(hashFunc string, data []byte) string {
 		binary.BigEndian.PutUint32(b, h)
 		hashString := hex.EncodeToString(b)
 		return hashString + hcCRCPad
+	// crc32 (standard, non-hashcat compatible)
 	case "crc32":
 		h := crc32.ChecksumIEEE(data)
 		b := make([]byte, 4)
 		binary.BigEndian.PutUint32(b, h)
 		return hex.EncodeToString(b)
+	// crc64
 	case "crc64":
 		table := crc64.MakeTable(crc64.ECMA)
 		h := crc64.Checksum(data, table)
 		b := make([]byte, 8)
 		binary.BigEndian.PutUint64(b, h)
 		return hex.EncodeToString(b)
+	// ntlm -m 1000
 	case "ntlm", "1000":
 		h := md4.New()
 		// convert byte slice to string assuming UTF-8, then encode as UTF-16LE
@@ -312,8 +364,10 @@ func hashBytes(hashFunc string, data []byte) string {
 		}
 		hashBytes := h.Sum(nil)
 		return hex.EncodeToString(hashBytes)
+	// base64 encode
 	case "base64encode", "base64-e", "base64e":
 		return base64.StdEncoding.EncodeToString(data)
+	// base64 decode
 	case "base64decode", "base64-d", "base64d":
 		decodedBytes := make([]byte, base64.StdEncoding.DecodedLen(len(data)))
 		n, err := base64.StdEncoding.Decode(decodedBytes, data)
@@ -322,6 +376,19 @@ func hashBytes(hashFunc string, data []byte) string {
 			return ""
 		}
 		return string(decodedBytes[:n]) // convert the decoded bytes to a string
+	// base58 encode
+	case "base58encode", "base58-e", "base58e":
+		return base58.Encode(data)
+	// base58 decode
+	case "base58decode", "base58-d", "base58d":
+		trimmedData := bytes.TrimSpace(data)
+		decodedBytes := base58.Decode(string(trimmedData))
+		if len(decodedBytes) == 0 {
+			fmt.Fprintln(os.Stderr, "Invalid Base58 string")
+			return ""
+		}
+		return string(decodedBytes)
+	// plaintext -m 99999
 	case "plaintext", "plain", "99999":
 		return string(data) // convert byte slice to string
 	default:
@@ -333,13 +400,13 @@ func hashBytes(hashFunc string, data []byte) string {
 }
 
 // process wordlist chunks
-func processChunk(chunk []byte, count *int64, hexErrorCount *int64, hashFunc string, writer *bufio.Writer, hashPlainOutput bool) {
+func processChunk(chunk []byte, count *int64, hexErrorCount *int64, hashFunc string, writer *bufio.Writer, hashPlainOutput bool, cost int) {
 	reader := bytes.NewReader(chunk)
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 		decodedBytes, hexContent, hexErrCount := checkForHex(line)
-		hash := hashBytes(hashFunc, decodedBytes)
+		hash := hashBytes(hashFunc, decodedBytes, cost)
 		writer.WriteString(hash)
 		if hashPlainOutput {
 			writer.WriteString(":" + hexContent)
@@ -352,9 +419,17 @@ func processChunk(chunk []byte, count *int64, hexErrorCount *int64, hashFunc str
 }
 
 // process logic
-func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOutput bool, numGoroutines int) {
-	const readBufferSize = 1024 * 1024         // read buffer
-	const writeBufferSize = 2 * readBufferSize // write buffer (larger than read buffer)
+func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOutput bool, numGoroutines int, cost int) {
+	var readBufferSize = 1024 * 1024         // read buffer
+	var writeBufferSize = 2 * readBufferSize // write buffer (larger than read buffer)
+
+	if hashFunc == "bcrypt" || hashFunc == "3200" { // lower read buffer for bcrypt
+		readBufferSize = cost * 2
+	}
+
+	if hashFunc == "argon2id" || hashFunc == "argon2" || hashFunc == "argon" { // lower read buffer for argon2id
+		readBufferSize = 64
+	}
 
 	var linesHashed int64 = 0
 	var procWg sync.WaitGroup
@@ -433,7 +508,7 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 			for chunk := range readChunks {
 				localBuffer := bytes.NewBuffer(nil)
 				writer := bufio.NewWriterSize(localBuffer, writeBufferSize)
-				processChunk(chunk, &linesHashed, &hexDecodeErrors, hashFunc, writer, hashPlainOutput)
+				processChunk(chunk, &linesHashed, &hexDecodeErrors, hashFunc, writer, hashPlainOutput, cost)
 				writer.Flush()
 				writeData <- localBuffer.String()
 			}
@@ -459,8 +534,8 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 
 		for data := range writeData {
 			writer.WriteString(data)
+			writer.Flush() // flush after each write
 		}
-		writer.Flush()
 	}()
 
 	// wait for sync.waitgroups to finish
@@ -486,6 +561,7 @@ func main() {
 	outputFile := flag.String("o", "", "Output file to write hashes to (use 'stdout' to print to console)")
 	hashPlainOutput := flag.Bool("hashplain", false, "Enable hashplain output (hash:plain)")
 	threads := flag.Int("t", 0, "Number of CPU threads to use")
+	costFlag := flag.Int("cost", 8, "Bcrypt cost (4-31)")
 	version := flag.Bool("version", false, "Program version:")
 	cyclone := flag.Bool("cyclone", false, "hashgen")
 	help := flag.Bool("help", false, "Prints help:")
@@ -515,6 +591,22 @@ func main() {
 		helpFunc()
 	}
 
+	// run sanity check for bcrypt / cost
+	var costProvided bool
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "cost" {
+			costProvided = true
+		}
+	})
+	if costProvided && *hashFunc != "bcrypt" && *hashFunc != "3200" {
+		log.Fatalf("Error: -cost flag is only allowed for bcrypt")
+	}
+	if *hashFunc == "bcrypt" || *hashFunc == "3200" {
+		if *costFlag < bcrypt.MinCost || *costFlag > bcrypt.MaxCost {
+			log.Fatalf("Invalid bcrypt cost: must be between %d and %d", bcrypt.MinCost, bcrypt.MaxCost)
+		}
+	}
+
 	// determine CPU threads to use
 	numThreads := *threads
 	maxThreads := runtime.NumCPU()
@@ -528,7 +620,7 @@ func main() {
 
 	runtime.GOMAXPROCS(numThreads) // set CPU threads
 
-	startProc(*hashFunc, *inputFile, *outputFile, *hashPlainOutput, numThreads)
+	startProc(*hashFunc, *inputFile, *outputFile, *hashPlainOutput, numThreads, *costFlag)
 }
 
 // end code

@@ -1,3 +1,7 @@
+### v1.1.0; 2025-03-19
+```
+added modes: base58, argon2id, bcrypt w/custom cost factor
+```
 ### v1.0.0; 2024-12-10
 ```
 v1.0.0 release

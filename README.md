@@ -25,7 +25,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 
 ### Features:
 - Supports multiple hashing functions (see list below)
-- Encode & decode base64
+- Encode / decode base64 & base58
 - Supports ASCII, UTF-8 and $HEX[] wordlist input
   - Can also be used to dehex a wordlist by setting mode to "-m plaintext" which will output wordlist to plaintext
 
@@ -38,8 +38,12 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 ### Supported Functions:
 | Function: | Hashcat Mode: |
 |-----------|-----------|
+| argon2id | |
+| base58encode | |
+| base58decode | |
 | base64encode | |
 | base64decode | |
+| bcrypt | 3200 |
 | morsecode | (ITU-R M.1677-1) |
 | crc32 | |
 | 11500 | 11500 (hashcat compatible CRC32)|
