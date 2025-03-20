@@ -1,6 +1,11 @@
+### v1.1.1; 2025-03-20
+```
+added mode: yescrypt (https://github.com/cyclone-github/yescrypt_crack)
+tweaked read/write buffers for per-CPU thread
+```
 ### v1.1.0; 2025-03-19
 ```
-added modes: base58, argon2id, bcrypt w/custom cost factor
+added modes: base58, bcrypt w/custom cost factor, argon2id (https://github.com/cyclone-github/argon_cracker)
 ```
 ### v1.0.0; 2024-12-10
 ```

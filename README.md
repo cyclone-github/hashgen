@@ -66,6 +66,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | sha3-512| 17600 |
 | keccak-256| 17800 |
 | keccak-512| 18000 |
+| yescrypt | |
 
 ### Benchmarks:
 - https://github.com/cyclone-github/hashgen-testing/tree/main/benchmarks

@@ -26,6 +26,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/openwall/yescrypt-go"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/md4"
@@ -65,11 +66,14 @@ v2024-11-04.1445-threaded;
 v1.0.0; 2024-12-10
     v1.0.0 release
 v1.1.0; 2025-03-19
-    added modes: base58, argon2id, bcrypt w/custom cost factor
+    added modes: base58, bcrypt w/custom cost factor, argon2id (https://github.com/cyclone-github/argon_cracker)
+v1.1.1; 2025-03-20
+    added mode: yescrypt (https://github.com/cyclone-github/yescrypt_crack)
+	tweaked read/write buffers for per-CPU thread
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.0; 2025-03-19")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.1; 2025-03-20")
 }
 
 // help function
@@ -79,45 +83,46 @@ func helpFunc() {
 		"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n" +
 		"./hashgen -m bcrypt -cost 8 -w wordlist.txt\n" +
 		"cat wordlist | ./hashgen -m md5 -hashplain\n" +
-		"\nSupported Options:\n-m {mode} -w {wordlist} -t {cpu threads} -o {output_file} -hashplain {generates hash:plain pairs} -cost {bcrypt}\n" +
+		"\nSupported Options:\n-m {mode}\n-w {wordlist}\n-t {cpu threads}\n-o {output_file}\n-cost {bcrypt}\n-hashplain {generates hash:plain pairs}\n" +
 		"\nIf -w is not specified, defaults to stdin\n" +
 		"If -o is not specified, defaults to stdout\n" +
 		"If -t is not specified, defaults to max available CPU threads\n" +
 		"\nModes:\t\tHashcat Mode Equivalent:\n" +
-		"\nargon2id \t(very slow!)\n" +
+		"\nargon2id\t(slow algo)\n" +
 		"base58encode\n" +
 		"base58decode\n" +
 		"base64encode\n" +
 		"base64decode\n" +
-		"bcrypt \t\t 3200 (very slow!)\n" +
+		"bcrypt\t\t3200 (slow algo)\n" +
 		//"blake2s-256\n" +
 		//"blake2b-256\n" +
 		//"blake2b-384\n" +
-		//"blake2b-512 \t 600\n" +
-		"morsecode\t (ITU-R M.1677-1)\n" +
+		//"blake2b-512\t600\n" +
+		"morsecode\t(ITU-R M.1677-1)\n" +
 		"crc32\n" +
-		"11500\t\t (hashcat compatible CRC32)\n" +
+		"11500\t\t(hashcat compatible CRC32)\n" +
 		"crc64\n" +
-		"md4 \t\t 900\n" +
-		"md5 \t\t 0\n" +
-		"ntlm \t\t 1000\n" +
-		"plaintext \t 99999 \t (can be used to dehex wordlist)\n" +
-		"ripemd-160 \t 6000\n" +
-		"sha1 \t\t 100\n" +
-		"sha2-224 \t 1300\n" +
-		"sha2-384 \t 10800\n" +
-		"sha2-256 \t 1400\n" +
-		"sha2-512 \t 1700\n" +
+		"md4\t\t900\n" +
+		"md5\t\t0\n" +
+		"ntlm\t\t1000\n" +
+		"plaintext\t99999\t(can be used to dehex wordlist)\n" +
+		"ripemd-160\t6000\n" +
+		"sha1 \t\t100\n" +
+		"sha2-224\t1300\n" +
+		"sha2-384\t10800\n" +
+		"sha2-256\t1400\n" +
+		"sha2-512\t1700\n" +
 		"sha2-512-224\n" +
 		"sha2-512-256\n" +
-		"sha3-224 \t 17300\n" +
-		"sha3-256 \t 17400\n" +
-		"sha3-384 \t 17500\n" +
-		"sha3-512 \t 17600\n" +
-		//"keccak-224\t 17700\n" +
-		"keccak-256\t 17800\n" +
-		//"keccak-384\t 17900\n" +
-		"keccak-512\t 18000\n"
+		"sha3-224\t17300\n" +
+		"sha3-256\t17400\n" +
+		"sha3-384\t17500\n" +
+		"sha3-512\t17600\n" +
+		//"keccak-224\t17700\n" +
+		"keccak-256\t17800\n" +
+		//"keccak-384\t17900\n" +
+		"keccak-512\t18000\n" +
+		"yescrypt\t(slow algo)\n"
 	fmt.Fprintln(os.Stderr, str)
 	os.Exit(0)
 }
@@ -229,6 +234,40 @@ func encodeToMorseBytes(input []byte) []byte {
 // supported hash algos / modes
 func hashBytes(hashFunc string, data []byte, cost int) string {
 	switch hashFunc {
+	// yescrypt
+	case "yescrypt":
+		salt := make([]byte, 8) // random 8-byte salt
+		if _, err := rand.Read(salt); err != nil {
+			fmt.Fprintln(os.Stderr, "Error generating salt:", err)
+			return ""
+		}
+		key, err := yescrypt.Key(data, salt, 32768, 8, 1, 32) // use default yescrypt parameters: N=32768, r=8, p=1, keyLen=32
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "yescrypt error:", err)
+			return ""
+		}
+		const itoa64 = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" // custom yescrypt base64 alphabet
+		encode64 := func(src []byte) string {
+			var dst []byte
+			var value uint32
+			bits := 0
+			for i := 0; i < len(src); i++ {
+				value |= uint32(src[i]) << bits
+				bits += 8
+				for bits >= 6 {
+					dst = append(dst, itoa64[value&0x3f])
+					value >>= 6
+					bits -= 6
+				}
+			}
+			if bits > 0 {
+				dst = append(dst, itoa64[value&0x3f])
+			}
+			return string(dst)
+		}
+		encodedSalt := encode64(salt)
+		encodedKey := encode64(key)
+		return fmt.Sprintf("$y$jC5$%s$%s", encodedSalt, encodedKey)
 	// argon2id
 	case "argon2id", "argon2", "argon":
 		salt := make([]byte, 16) // random 16-byte salt
@@ -420,16 +459,19 @@ func processChunk(chunk []byte, count *int64, hexErrorCount *int64, hashFunc str
 
 // process logic
 func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOutput bool, numGoroutines int, cost int) {
-	var readBufferSize = 1024 * 1024         // read buffer
+	//var readBufferSize = 1024 * 1024 // read buffer
+	var readBufferSize = numGoroutines + 16*32*1024 // variable read buffer
+
+	// lower read buffer for bcrypt (varies with -cost)
+	if hashFunc == "bcrypt" || hashFunc == "3200" {
+		readBufferSize = numGoroutines/cost + 32*2
+	}
+	// lower read buffer for argon2id, yescrypt
+	if hashFunc == "argon2id" || hashFunc == "argon2" || hashFunc == "argon" || hashFunc == "yescrypt" {
+		readBufferSize = numGoroutines + 8*2
+	}
+
 	var writeBufferSize = 2 * readBufferSize // write buffer (larger than read buffer)
-
-	if hashFunc == "bcrypt" || hashFunc == "3200" { // lower read buffer for bcrypt
-		readBufferSize = cost * 2
-	}
-
-	if hashFunc == "argon2id" || hashFunc == "argon2" || hashFunc == "argon" { // lower read buffer for argon2id
-		readBufferSize = 64
-	}
 
 	var linesHashed int64 = 0
 	var procWg sync.WaitGroup
