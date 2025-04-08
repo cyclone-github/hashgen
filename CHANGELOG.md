@@ -1,3 +1,7 @@
+### v1.1.2; 2025-04-08
+```
+switched base58 lib to "github.com/cyclone-github/base58" for greatly improved base58 performance
+```
 ### v1.1.1; 2025-03-20
 ```
 added mode: yescrypt (https://github.com/cyclone-github/yescrypt_crack)

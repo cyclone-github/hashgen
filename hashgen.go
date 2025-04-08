@@ -25,7 +25,7 @@ import (
 	"time"
 	"unicode/utf16"
 
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/cyclone-github/base58"
 	"github.com/openwall/yescrypt-go"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
@@ -70,10 +70,12 @@ v1.1.0; 2025-03-19
 v1.1.1; 2025-03-20
     added mode: yescrypt (https://github.com/cyclone-github/yescrypt_crack)
 	tweaked read/write buffers for per-CPU thread
+v1.1.2; 2025-04-08
+    switched base58 lib to "github.com/cyclone-github/base58" for greatly improved base58 performance
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.1; 2025-03-20")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.2; 2025-04-08")
 }
 
 // help function
@@ -417,16 +419,18 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		return string(decodedBytes[:n]) // convert the decoded bytes to a string
 	// base58 encode
 	case "base58encode", "base58-e", "base58e":
-		return base58.Encode(data)
+		return base58.StdEncoding.EncodeToString(data)
+
 	// base58 decode
 	case "base58decode", "base58-d", "base58d":
 		trimmedData := bytes.TrimSpace(data)
-		decodedBytes := base58.Decode(string(trimmedData))
-		if len(decodedBytes) == 0 {
-			fmt.Fprintln(os.Stderr, "Invalid Base58 string")
+		decodedBytes, err := base58.StdEncoding.DecodeString(string(trimmedData))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Invalid Base58 string:", err)
 			return ""
 		}
 		return string(decodedBytes)
+
 	// plaintext -m 99999
 	case "plaintext", "plain", "99999":
 		return string(data) // convert byte slice to string
