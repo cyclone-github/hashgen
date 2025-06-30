@@ -24,49 +24,64 @@ Hashgen is a CLI hash generator written in Go and can be cross compiled for Linu
 To use hashgen, type your mode, wordlist input & hash output files with a simple command line.
 
 ### Features:
-- Supports multiple hashing functions (see list below)
+- Supports 30+ modes/functions (see list below)
 - Encode / decode base64 & base58
+- Hex / dehex wordlists
 - Supports ASCII, UTF-8 and $HEX[] wordlist input
-  - Can also be used to dehex a wordlist by setting mode to "-m plaintext" which will output wordlist to plaintext
 
 | Useage Examples | Command Line |
 |-----------|-----------|
 | read wordlist.txt, hash to md5 and write to output.txt | ./hashgen -m md5 -w wordlist.txt -o output.txt |
 | pipe wordlist into hashgen and write to stdout | cat wordlist.txt \| ./hashgen -m md5 |
-| dehex hex_wordlist to plaintext wordlist | ./hashgen -m plaintext -w hex_wordlist.txt -o wordlist.txt |
+| dehex wordlist to plaintext | ./hashgen -m dehex -w hex_wordlist.txt |
+| convert wordlist to $HEX[] | ./hashgen -m hex -w wordlist.txt |
+| output hash:plain | ./hashgen -m md5 -w wordlist.txt -hashplain |
+
+### Supported Options:
+| Flag: | Description: |
+|-----------|-----------|
+| -m  | {mode} | 
+| -w  | {wordlist input} |
+| -t  | {cpu threads} |
+| -o  | {wordlist output} |
+| -cost  | {bcrypt} |
+| -hashplain  | {generates hash:plain pairs} |
+| -help  | {help menu} |
+| -version  | {version info} |
 
 ### Supported Functions:
 | Function: | Hashcat Mode: |
 |-----------|-----------|
-| argon2id | |
-| base58encode | |
+| argon2id | (slow algo) |
 | base58decode | |
-| base64encode | |
+| base58encode | |
 | base64decode | |
-| bcrypt | 3200 |
-| morsecode | (ITU-R M.1677-1) |
+| base64encode | |
+| bcrypt | 3200 (slow algo) |
+| 11500 | (hashcat compatible CRC32) |
 | crc32 | |
-| 11500 | 11500 (hashcat compatible CRC32)|
 | crc64 | |
+| hex | ($HEX[] format) |
+| dehex/plaintext | 99999 (dehex wordlist) |
+| keccak-256 | 17800 |
+| keccak-512 | 18000 |
 | md4 | 900 |
 | md5 | 0 |
-| ntlm| 1000|
-| plaintext | 99999 (can be used to dehex wordlist) |
-| ripemd-160| 6000|
-| sha1| 100 |
-| sha2-224| 1300|
-| sha2-256| 1400|
-| sha2-384| 10800 |
-| sha2-512| 1700|
-| sha2-512-224| |
-| sha2-512-256| |
-| sha3-224| 17300 |
-| sha3-256| 17400 |
-| sha3-384| 17500 |
-| sha3-512| 17600 |
-| keccak-256| 17800 |
-| keccak-512| 18000 |
-| yescrypt | |
+| morsecode | (ITU-R M.1677-1) |
+| ntlm | 1000 |
+| ripemd-160 | 6000 |
+| sha1 | 100 |
+| sha2-224 | 1300 |
+| sha2-256 | 1400 |
+| sha2-384 | 10800 |
+| sha2-512 | 1700 |
+| sha2-512-224 | |
+| sha2-512-256 | |
+| sha3-224 | 17300 |
+| sha3-256 | 17400 |
+| sha3-384 | 17500 |
+| sha3-512 | 17600 |
+| yescrypt | (slow algo) |
 
 ### Benchmarks:
 - https://github.com/cyclone-github/hashgen-testing/tree/main/benchmarks
@@ -93,6 +108,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 - hashcat wiki: https://hashcat.net/wiki/
 - hashkiller forum: https://forum.hashkiller.io/index.php?threads/cyclone-hashgen.63140/
 - hashpwn forum: https://forum.hashpwn.net/post/89
+- MajorGeeks: https://www.majorgeeks.com/files/details/hashgen.html
 - Softpedia: https://www.softpedia.com/get/System/File-Management/hashgen-go.shtml
 
 ### Antivirus False Positives:

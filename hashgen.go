@@ -72,10 +72,14 @@ v1.1.1; 2025-03-20
 	tweaked read/write buffers for per-CPU thread
 v1.1.2; 2025-04-08
     switched base58 lib to "github.com/cyclone-github/base58" for greatly improved base58 performance
+v1.1.3; 2025-06-30
+	added mode "hex" for $HEX[] formatted output
+	added alias "dehex" to "plaintext" mode
+	improved "plaintext/dehex" logic to decode both $HEX[] and raw base-16 input
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.2; 2025-04-08")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.3; 2025-06-30\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -85,34 +89,39 @@ func helpFunc() {
 		"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n" +
 		"./hashgen -m bcrypt -cost 8 -w wordlist.txt\n" +
 		"cat wordlist | ./hashgen -m md5 -hashplain\n" +
-		"\nSupported Options:\n-m {mode}\n-w {wordlist}\n-t {cpu threads}\n-o {output_file}\n-cost {bcrypt}\n-hashplain {generates hash:plain pairs}\n" +
+		"\nSupported Options:\n-m {mode}\n-w {wordlist inpu}\n-t {cpu threads}\n-o {wordlist output}\n-cost {bcrypt}\n-hashplain {generates hash:plain pairs}\n" +
 		"\nIf -w is not specified, defaults to stdin\n" +
 		"If -o is not specified, defaults to stdout\n" +
 		"If -t is not specified, defaults to max available CPU threads\n" +
 		"\nModes:\t\tHashcat Mode Equivalent:\n" +
-		"\nargon2id\t(slow algo)\n" +
-		"base58encode\n" +
+		"argon2id\t(slow algo)\n" +
 		"base58decode\n" +
-		"base64encode\n" +
+		"base58encode\n" +
 		"base64decode\n" +
+		"base64encode\n" +
 		"bcrypt\t\t3200 (slow algo)\n" +
 		//"blake2s-256\n" +
 		//"blake2b-256\n" +
 		//"blake2b-384\n" +
 		//"blake2b-512\t600\n" +
-		"morsecode\t(ITU-R M.1677-1)\n" +
-		"crc32\n" +
 		"11500\t\t(hashcat compatible CRC32)\n" +
+		"crc32\n" +
 		"crc64\n" +
+		"hex\t\t($HEX[] format)\n" +
+		"dehex/plaintext\t99999\t(dehex wordlist)\n" +
+		//"keccak-224\t17700\n" +
+		"keccak-256\t17800\n" +
+		//"keccak-384\t17900\n" +
+		"keccak-512\t18000\n" +
 		"md4\t\t900\n" +
 		"md5\t\t0\n" +
+		"morsecode\t(ITU-R M.1677-1)\n" +
 		"ntlm\t\t1000\n" +
-		"plaintext\t99999\t(can be used to dehex wordlist)\n" +
 		"ripemd-160\t6000\n" +
 		"sha1 \t\t100\n" +
 		"sha2-224\t1300\n" +
-		"sha2-384\t10800\n" +
 		"sha2-256\t1400\n" +
+		"sha2-384\t10800\n" +
 		"sha2-512\t1700\n" +
 		"sha2-512-224\n" +
 		"sha2-512-256\n" +
@@ -120,10 +129,6 @@ func helpFunc() {
 		"sha3-256\t17400\n" +
 		"sha3-384\t17500\n" +
 		"sha3-512\t17600\n" +
-		//"keccak-224\t17700\n" +
-		"keccak-256\t17800\n" +
-		//"keccak-384\t17900\n" +
-		"keccak-512\t18000\n" +
 		"yescrypt\t(slow algo)\n"
 	fmt.Fprintln(os.Stderr, str)
 	os.Exit(0)
@@ -236,6 +241,13 @@ func encodeToMorseBytes(input []byte) []byte {
 // supported hash algos / modes
 func hashBytes(hashFunc string, data []byte, cost int) string {
 	switch hashFunc {
+	// $HEX[]
+	case "hex":
+		buf := make([]byte, 6+hex.EncodedLen(len(data))+1) // "$HEX[" + hex + "]"
+		copy(buf, "$HEX[")
+		hex.Encode(buf[5:], data)
+		buf[len(buf)-1] = ']'
+		return string(buf)
 	// yescrypt
 	case "yescrypt":
 		salt := make([]byte, 8) // random 8-byte salt
@@ -431,8 +443,12 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		}
 		return string(decodedBytes)
 
-	// plaintext -m 99999
-	case "plaintext", "plain", "99999":
+	// plaintext, dehex, -m 99999
+	case "plaintext", "plain", "99999", "dehex", "unhex":
+		// attempt hex decode directly
+		if decoded, err := hex.DecodeString(string(data)); err == nil {
+			return string(decoded)
+		}
 		return string(data) // convert byte slice to string
 	default:
 		log.Printf("--> Invalid hash function: %s <--\n", hashFunc)

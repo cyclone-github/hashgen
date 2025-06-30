@@ -1,3 +1,9 @@
+### v1.1.3; 2025-06-30
+```
+added mode "hex" for $HEX[] formatted output
+added alias "dehex" to "plaintext" mode
+improved "plaintext/dehex" logic to decode both $HEX[] and raw base-16 input
+```
 ### v1.1.2; 2025-04-08
 ```
 switched base58 lib to "github.com/cyclone-github/base58" for greatly improved base58 performance
