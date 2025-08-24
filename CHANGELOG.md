@@ -1,6 +1,6 @@
 ### v1.1.4; 2025-08-23
 ```
-added modes: keccak-224, keccak-384, blake2b-256, blake2b-384, blake2b-512, blake2c-256
+added modes: keccak-224, keccak-384, blake2b-256, blake2b-384, blake2b-512, blake2s-256
 added benchmark flag, -b (to benchmark current mode, disables output)
 compiled with Go v1.25.0 which gives a small performance boost to multiple algos
 added notes concerning some NTLM hashes not being crackable with certain hash cracking tools due to encoding gremlins
