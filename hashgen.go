@@ -26,9 +26,12 @@ import (
 	"unicode/utf16"
 
 	"github.com/cyclone-github/base58"
+	"github.com/ebfe/keccak" // keccak 224/384
 	"github.com/openwall/yescrypt-go"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/blake2s"
 	"golang.org/x/crypto/md4"
 	"golang.org/x/crypto/ripemd160"
 	"golang.org/x/crypto/sha3"
@@ -76,10 +79,15 @@ v1.1.3; 2025-06-30
 	added mode "hex" for $HEX[] formatted output
 	added alias "dehex" to "plaintext" mode
 	improved "plaintext/dehex" logic to decode both $HEX[] and raw base-16 input
+v1.1.4; 2025-08-23
+	added modes: keccak-224, keccak-384, blake2b-256, blake2b-384, blake2b-512, blake2c-256
+	added benchmark flag, -b (to benchmark current mode, disables output)
+	compiled with Go v1.25.0 which gives a small performance boost to multiple algos
+	added notes concerning some NTLM hashes not being crackable with certain hash cracking tools due to encoding gremlins
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.3; 2025-06-30\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.4; 2025-08-23\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -89,29 +97,31 @@ func helpFunc() {
 		"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n" +
 		"./hashgen -m bcrypt -cost 8 -w wordlist.txt\n" +
 		"cat wordlist | ./hashgen -m md5 -hashplain\n" +
-		"\nSupported Options:\n-m {mode}\n-w {wordlist inpu}\n-t {cpu threads}\n-o {wordlist output}\n-cost {bcrypt}\n-hashplain {generates hash:plain pairs}\n" +
+		"\nAll Supported Options:\n-m {mode}\n-w {wordlist input}\n-t {cpu threads}\n-o {wordlist output}\n-b {benchmark mode}\n-cost {bcrypt}\n-hashplain {generates hash:plain pairs}\n" +
 		"\nIf -w is not specified, defaults to stdin\n" +
 		"If -o is not specified, defaults to stdout\n" +
 		"If -t is not specified, defaults to max available CPU threads\n" +
 		"\nModes:\t\tHashcat Mode Equivalent:\n" +
-		"argon2id\t(slow algo)\n" +
+		"argon2id\t34000 (slow algo)\n" +
 		"base58decode\n" +
 		"base58encode\n" +
 		"base64decode\n" +
 		"base64encode\n" +
 		"bcrypt\t\t3200 (slow algo)\n" +
-		//"blake2s-256\n" +
-		//"blake2b-256\n" +
-		//"blake2b-384\n" +
-		//"blake2b-512\t600\n" +
-		"11500\t\t(hashcat compatible CRC32)\n" +
+		"blake2s-256\n" +
+		"31000\t\t(hashcat compatible blake2s-256)\n" +
+		"blake2b-256\n" +
+		"blake2b-384\n" +
+		"blake2b-512\n" +
+		"600\t\t(hashcat compatible blake2b-512)\n" +
 		"crc32\n" +
+		"11500\t\t(hashcat compatible CRC32)\n" +
 		"crc64\n" +
 		"hex\t\t($HEX[] format)\n" +
 		"dehex/plaintext\t99999\t(dehex wordlist)\n" +
-		//"keccak-224\t17700\n" +
+		"keccak-224\t17700\n" +
 		"keccak-256\t17800\n" +
-		//"keccak-384\t17900\n" +
+		"keccak-384\t17900\n" +
 		"keccak-512\t18000\n" +
 		"md4\t\t900\n" +
 		"md5\t\t0\n" +
@@ -375,9 +385,19 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		h := sha3.New512()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// keccak-224 -m 17700 (raw hex)
+	case "keccak-224", "keccak224", "17700":
+		h := keccak.New224()
+		h.Write(data)
+		return hex.EncodeToString(h.Sum(nil))
 	// keccak-256 -m 17800
 	case "keccak-256", "keccak256", "17800":
 		h := sha3.NewLegacyKeccak256()
+		h.Write(data)
+		return hex.EncodeToString(h.Sum(nil))
+	// keccak-384 -m 17900 (raw hex)
+	case "keccak-384", "keccak384", "17900":
+		h := keccak.New384()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	// keccak-512 -m 18000
@@ -411,12 +431,51 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		h := md4.New()
 		// convert byte slice to string assuming UTF-8, then encode as UTF-16LE
 		// this may not work as expected if plaintext contains non-ASCII/UTF-8 encoding
+		// due to encoding gremlins, not all NTLM hashes generated with hashgen are recoverable
+		// recovery test results on rockyou.txt (14,344,391 lines):
+		// mdxfind	recovered: 99.998%		missed: 218 	/ 14,344,391
+		// hashpwn	recovered: 99.993%		missed: 1,025	/ 14,344,391
+		// jtr		recovered: 99.961%		missed: 5,631	/ 14,344,391
+		// hashcat	recovered: 99.862%		missed: 19,824	/ 14,344,391
 		input := utf16.Encode([]rune(string(data))) // convert byte slice to string, then to rune slice
 		if err := binary.Write(h, binary.LittleEndian, input); err != nil {
 			panic("Failed NTLM hashing")
 		}
 		hashBytes := h.Sum(nil)
 		return hex.EncodeToString(hashBytes)
+	// blake2b-256 (raw hex)
+	case "blake2b-256", "blake2b256":
+		h := blake2b.Sum256(data)
+		return hex.EncodeToString(h[:])
+	// blake2b-384 (raw hex)
+	case "blake2b-384", "blake2b384":
+		h := blake2b.Sum384(data)
+		return hex.EncodeToString(h[:])
+	// blake2b-512 (raw hex)
+	case "blake2b-512", "blake2b512":
+		h := blake2b.Sum512(data)
+		return hex.EncodeToString(h[:])
+	// blake2s-256 (raw hex)
+	case "blake2s-256", "blake2s256":
+		h := blake2s.Sum256(data)
+		return hex.EncodeToString(h[:])
+	// hashcat mode -m 600 BLAKE2b-512, $BLAKE2$<hex>
+	case "600":
+		h := blake2b.Sum512(data)
+		const pB = "$BLAKE2$"
+		buf := make([]byte, len(pB)+hex.EncodedLen(len(h)))
+		copy(buf, pB)
+		hex.Encode(buf[len(pB):], h[:])
+		return string(buf)
+	// hashcat mode -m 31000 BLAKE2s-256, $BLAKE2$<hex>
+	case "31000":
+		h := blake2s.Sum256(data)
+		const pS = "$BLAKE2$"
+		buf := make([]byte, len(pS)+hex.EncodedLen(len(h)))
+		copy(buf, pS)
+		hex.Encode(buf[len(pS):], h[:])
+		return string(buf)
+
 	// base64 encode
 	case "base64encode", "base64-e", "base64e":
 		return base64.StdEncoding.EncodeToString(data)
@@ -622,6 +681,7 @@ func main() {
 	inputFile := flag.String("w", "", "Input file to process (use 'stdin' to read from standard input)")
 	outputFile := flag.String("o", "", "Output file to write hashes to (use 'stdout' to print to console)")
 	hashPlainOutput := flag.Bool("hashplain", false, "Enable hashplain output (hash:plain)")
+	benchmark := flag.Bool("b", false, "Benchmark mode (disables output)")
 	threads := flag.Int("t", 0, "Number of CPU threads to use")
 	costFlag := flag.Int("cost", 8, "Bcrypt cost (4-31)")
 	version := flag.Bool("version", false, "Program version:")
@@ -651,6 +711,15 @@ func main() {
 	if *hashFunc == "" {
 		log.Fatalf("--> missing '-m algo' <--\n")
 		helpFunc()
+	}
+
+	// block output flags when benchmarking
+	if *benchmark {
+		if *outputFile != "" {
+			log.Fatalf("Error: -o flag cannot be used with -b (benchmark mode)")
+		}
+		// force discard output
+		*outputFile = os.DevNull
 	}
 
 	// run sanity check for bcrypt / cost
