@@ -8,12 +8,12 @@
 
 # hashgen - Cyclone's hash generator
 ```
-$ ./hashgen_amd64.bin -m 0 -w rockyou.txt -o /dev/null
-2024/12/10 19:07:31 Starting...
-2024/12/10 19:07:31 Processing file: rockyou.txt
-2024/12/10 19:07:31 Hash function: 0
-2024/12/10 19:07:31 CPU Threads: 16
-2024/12/10 19:07:31 Finished processing 14344391 lines in 0.475 sec (30.228 M lines/sec)
+$ hashgen -m md5 -w rockyou.txt -b
+2025/08/23 19:18:27 Starting...
+2025/08/23 19:18:27 Processing file: rockyou.txt
+2025/08/23 19:18:27 Hash function: md5
+2025/08/23 19:18:27 CPU Threads: 16
+2025/08/23 19:18:28 Finished processing 14344391 lines in 0.465 sec (30.839 M lines/sec)
 ```
 **As of the this writing, hashgen (go) has a 2,519% faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** While this is extremely fast, these hashrates can be beat by improved code optimization and/or coding in faster programming languages (I'm looking at you C, Rust and Zig).
 
@@ -24,7 +24,7 @@ Hashgen is a CLI hash generator written in Go and can be cross compiled for Linu
 To use hashgen, type your mode, wordlist input & hash output files with a simple command line.
 
 ### Features:
-- Supports 30+ modes/functions (see list below)
+- Supports 38+ modes/functions (see list below)
 - Encode / decode base64 & base58
 - Hex / dehex wordlists
 - Supports ASCII, UTF-8 and $HEX[] wordlist input
@@ -36,6 +36,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | dehex wordlist to plaintext | ./hashgen -m dehex -w hex_wordlist.txt |
 | convert wordlist to $HEX[] | ./hashgen -m hex -w wordlist.txt |
 | output hash:plain | ./hashgen -m md5 -w wordlist.txt -hashplain |
+| benchmark md5 | ./hashgen -m md5 -w wordlist.txt -b |
 
 ### Supported Options:
 | Flag: | Description: |
@@ -44,44 +45,53 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | -w  | {wordlist input} |
 | -t  | {cpu threads} |
 | -o  | {wordlist output} |
+| -b  | {benchmark mode} |
 | -cost  | {bcrypt} |
 | -hashplain  | {generates hash:plain pairs} |
 | -help  | {help menu} |
 | -version  | {version info} |
 
 ### Supported Functions:
-| Function: | Hashcat Mode: |
-|-----------|-----------|
-| argon2id | (slow algo) |
-| base58decode | |
-| base58encode | |
-| base64decode | |
-| base64encode | |
-| bcrypt | 3200 (slow algo) |
-| 11500 | (hashcat compatible CRC32) |
-| crc32 | |
-| crc64 | |
-| hex | ($HEX[] format) |
+| Function:       | Hashcat Mode: |
+|-----------------|----------------|
+| argon2id        | 34000 (slow algo) |
+| base58decode    | |
+| base58encode    | |
+| base64decode    | |
+| base64encode    | |
+| bcrypt          | 3200 (slow algo) |
+| blake2s-256     | |
+| 31000           | (hashcat compatible blake2s-256) |
+| blake2b-256     | |
+| blake2b-384     | |
+| blake2b-512     | |
+| 600             | (hashcat compatible blake2b-512) |
+| crc32           | |
+| 11500           | (hashcat compatible CRC32) |
+| crc64           | |
+| hex             | ($HEX[] format) |
 | dehex/plaintext | 99999 (dehex wordlist) |
-| keccak-256 | 17800 |
-| keccak-512 | 18000 |
-| md4 | 900 |
-| md5 | 0 |
-| morsecode | (ITU-R M.1677-1) |
-| ntlm | 1000 |
-| ripemd-160 | 6000 |
-| sha1 | 100 |
-| sha2-224 | 1300 |
-| sha2-256 | 1400 |
-| sha2-384 | 10800 |
-| sha2-512 | 1700 |
-| sha2-512-224 | |
-| sha2-512-256 | |
-| sha3-224 | 17300 |
-| sha3-256 | 17400 |
-| sha3-384 | 17500 |
-| sha3-512 | 17600 |
-| yescrypt | (slow algo) |
+| keccak-224      | 17700 |
+| keccak-256      | 17800 |
+| keccak-384      | 17900 |
+| keccak-512      | 18000 |
+| md4             | 900 |
+| md5             | 0 |
+| morsecode       | (ITU-R M.1677-1) |
+| ntlm            | 1000 |
+| ripemd-160      | 6000 |
+| sha1            | 100 |
+| sha2-224        | 1300 |
+| sha2-256        | 1400 |
+| sha2-384        | 10800 |
+| sha2-512        | 1700 |
+| sha2-512-224    | |
+| sha2-512-256    | |
+| sha3-224        | 17300 |
+| sha3-256        | 17400 |
+| sha3-384        | 17500 |
+| sha3-512        | 17600 |
+| yescrypt        | (slow algo) |
 
 ### Benchmarks:
 - https://github.com/cyclone-github/hashgen-testing/tree/main/benchmarks
