@@ -78,18 +78,19 @@ v1.1.2; 2025-04-08
 v1.1.3; 2025-06-30
 	added mode "hex" for $HEX[] formatted output
 	added alias "dehex" to "plaintext" mode
-	improved "plaintext/dehex" logic to decode both $HEX[] --> and raw base-16 input <-- (removed decoding raw base-16, see changes for v1.1.5)
+	improved "plaintext/dehex" logic to decode both $HEX[] --> and raw base-16 input <-- (removed decoding raw base 16, see changes for v1.1.5)
 v1.1.4; 2025-08-23
 	added modes: keccak-224, keccak-384, blake2b-256, blake2b-384, blake2b-512, blake2c-256
 	added benchmark flag, -b (to benchmark current mode, disables output)
 	compiled with Go v1.25.0 which gives a small performance boost to multiple algos
 	added notes concerning some NTLM hashes not being crackable with certain hash cracking tools due to encoding gremlins
-v1.1.5-dev; 2025-09-09.1500
+v1.1.5-dev; 2025-09-09.1600
+	added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
 	addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.5-dev; 2025-09-09.1500\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.5-dev; 2025-09-09.1600\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -558,8 +559,17 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 	var writeWg sync.WaitGroup
 	var hexDecodeErrors int64 = 0 // hex error counter
 
-	readChunks := make(chan []byte, 1000) // channel for reading chunks of data
-	writeData := make(chan string, 1000)  // channel for writing processed data
+	type chunk struct {
+		index int
+		data  []byte
+	}
+	type writeItem struct {
+		index int
+		data  string
+	}
+
+	readChunks := make(chan chunk, 1000)    // channel for reading chunks of data
+	writeData := make(chan writeItem, 1000) // channel for writing processed data
 
 	// determine input source
 	var file *os.File
@@ -593,9 +603,10 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 		defer readWg.Done()
 		var remainder []byte
 		reader := bufio.NewReaderSize(file, readBufferSize)
+		chunkIndex := 0
 		for {
-			chunk := make([]byte, readBufferSize)
-			n, err := reader.Read(chunk)
+			chunkBuf := make([]byte, readBufferSize)
+			n, err := reader.Read(chunkBuf)
 			if err == io.EOF {
 				break
 			}
@@ -604,19 +615,20 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 				return
 			}
 			// logic to split chunks properly
-			chunk = chunk[:n]
-			chunk = append(remainder, chunk...)
+			chunkBuf = chunkBuf[:n]
+			chunkBuf = append(remainder, chunkBuf...)
 
-			lastNewline := bytes.LastIndexByte(chunk, '\n')
+			lastNewline := bytes.LastIndexByte(chunkBuf, '\n')
 			if lastNewline == -1 {
-				remainder = chunk
+				remainder = chunkBuf
 			} else {
-				readChunks <- chunk[:lastNewline+1]
-				remainder = chunk[lastNewline+1:]
+				readChunks <- chunk{index: chunkIndex, data: chunkBuf[:lastNewline+1]}
+				chunkIndex++
+				remainder = chunkBuf[lastNewline+1:]
 			}
 		}
 		if len(remainder) > 0 {
-			readChunks <- remainder
+			readChunks <- chunk{index: chunkIndex, data: remainder}
 		}
 		close(readChunks)
 	}()
@@ -629,9 +641,9 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 			for chunk := range readChunks {
 				localBuffer := bytes.NewBuffer(nil)
 				writer := bufio.NewWriterSize(localBuffer, writeBufferSize)
-				processChunk(chunk, &linesHashed, &hexDecodeErrors, hashFunc, writer, hashPlainOutput, cost)
+				processChunk(chunk.data, &linesHashed, &hexDecodeErrors, hashFunc, writer, hashPlainOutput, cost)
 				writer.Flush()
-				writeData <- localBuffer.String()
+				writeData <- writeItem{index: chunk.index, data: localBuffer.String()}
 			}
 		}()
 	}
@@ -653,9 +665,31 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 			writer = bufio.NewWriterSize(os.Stdout, writeBufferSize)
 		}
 
-		for data := range writeData {
+		pending := make(map[int]string)
+		next := 0
+		for item := range writeData {
+			pending[item.index] = item.data
+			for {
+				data, ok := pending[next]
+				if !ok {
+					break
+				}
+				writer.WriteString(data)
+				writer.Flush() // flush after each write
+				delete(pending, next)
+				next++
+			}
+		}
+
+		for {
+			data, ok := pending[next]
+			if !ok {
+				break
+			}
 			writer.WriteString(data)
-			writer.Flush() // flush after each write
+			writer.Flush()
+			delete(pending, next)
+			next++
 		}
 	}()
 
