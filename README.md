@@ -33,7 +33,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 |-----------|-----------|
 | read wordlist.txt, hash to md5 and write to output.txt | ./hashgen -m md5 -w wordlist.txt -o output.txt |
 | pipe wordlist into hashgen and write to stdout | cat wordlist.txt \| ./hashgen -m md5 |
-| dehex wordlist to plaintext | ./hashgen -m dehex -w hex_wordlist.txt |
+| decode $HEX[] wordlist to plaintext | ./hashgen -m plaintext -w hex_wordlist.txt |
 | convert wordlist to $HEX[] | ./hashgen -m hex -w wordlist.txt |
 | output hash:plain | ./hashgen -m md5 -w wordlist.txt -hashplain |
 | benchmark md5 | ./hashgen -m md5 -w wordlist.txt -b |
@@ -69,8 +69,8 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | crc32           | |
 | 11500           | (hashcat compatible CRC32) |
 | crc64           | |
-| hex             | ($HEX[] format) |
-| dehex/plaintext | 99999 (dehex wordlist) |
+| hex             | (encode to $HEX[] format) |
+| dehex/plaintext | 99999 (decode $HEX[]) |
 | keccak-224      | 17700 |
 | keccak-256      | 17800 |
 | keccak-384      | 17900 |
