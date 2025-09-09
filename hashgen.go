@@ -78,16 +78,18 @@ v1.1.2; 2025-04-08
 v1.1.3; 2025-06-30
 	added mode "hex" for $HEX[] formatted output
 	added alias "dehex" to "plaintext" mode
-	improved "plaintext/dehex" logic to decode both $HEX[] and raw base-16 input
+	improved "plaintext/dehex" logic to decode both $HEX[] --> and raw base-16 input <-- (removed decoding raw base-16, see changes for v1.1.5)
 v1.1.4; 2025-08-23
 	added modes: keccak-224, keccak-384, blake2b-256, blake2b-384, blake2b-512, blake2c-256
 	added benchmark flag, -b (to benchmark current mode, disables output)
 	compiled with Go v1.25.0 which gives a small performance boost to multiple algos
 	added notes concerning some NTLM hashes not being crackable with certain hash cracking tools due to encoding gremlins
+v1.1.5-dev; 2025-09-09.1500
+	addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.4; 2025-08-23\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.5-dev; 2025-09-09.1500\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -117,8 +119,8 @@ func helpFunc() {
 		"crc32\n" +
 		"11500\t\t(hashcat compatible CRC32)\n" +
 		"crc64\n" +
-		"hex\t\t($HEX[] format)\n" +
-		"dehex/plaintext\t99999\t(dehex wordlist)\n" +
+		"hex\t\t(encode to $HEX[])\n" +
+		"dehex/plaintext\t99999\t(decode $HEX[])\n" +
 		"keccak-224\t17700\n" +
 		"keccak-256\t17800\n" +
 		"keccak-384\t17900\n" +
@@ -502,13 +504,11 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		}
 		return string(decodedBytes)
 
-	// plaintext, dehex, -m 99999
+		// plaintext, dehex, -m 99999
 	case "plaintext", "plain", "99999", "dehex", "unhex":
-		// attempt hex decode directly
-		if decoded, err := hex.DecodeString(string(data)); err == nil {
-			return string(decoded)
-		}
-		return string(data) // convert byte slice to string
+		// passthrough & run checkForHex
+		return string(data)
+
 	default:
 		log.Printf("--> Invalid hash function: %s <--\n", hashFunc)
 		helpFunc()

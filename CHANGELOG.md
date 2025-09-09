@@ -1,3 +1,7 @@
+### v1.1.5-dev; 2025-09-09.1500
+```
+addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
+```
 ### v1.1.4; 2025-08-23
 ```
 added modes: keccak-224, keccak-384, blake2b-256, blake2b-384, blake2b-512, blake2s-256
