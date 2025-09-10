@@ -87,7 +87,7 @@ v1.1.4; 2025-08-23
 v1.1.5-dev; 2025-09-10.1000
 	addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 	added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
-	added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/9
+	added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
 */
 
 func versionFunc() {
