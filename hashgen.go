@@ -84,13 +84,14 @@ v1.1.4; 2025-08-23
 	added benchmark flag, -b (to benchmark current mode, disables output)
 	compiled with Go v1.25.0 which gives a small performance boost to multiple algos
 	added notes concerning some NTLM hashes not being crackable with certain hash cracking tools due to encoding gremlins
-v1.1.5-dev; 2025-09-09.1600
-	added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
+v1.1.5-dev; 2025-09-10.1000
 	addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
+	added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
+	added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.5-dev; 2025-09-09.1600\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.5-dev; 2025-09-10.1000\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -701,12 +702,36 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 
 	// print stats
 	elapsedTime := time.Since(startTime)
-	runTime := float64(elapsedTime.Seconds())
-	linesPerSecond := float64(linesHashed) / elapsedTime.Seconds() * 0.000001
+	runTime := elapsedTime.Seconds()
+
+	lps := float64(linesHashed) / runTime // raw lines/sec
+
+	unit := ""    // < 1 K (oh, so slow)
+	scaled := lps // lines per second
+	switch {
+	case lps >= 1e12: // Trillion (not likely!)
+		unit = "T"
+		scaled = lps / 1e12
+	case lps >= 1e9: // Billion (what CPU is this?)
+		unit = "B"
+		scaled = lps / 1e9
+	case lps >= 1e6: // Million (yep)
+		unit = "M"
+		scaled = lps / 1e6
+	case lps >= 1e3: // Thousand (still so slow)
+		unit = "K"
+		scaled = lps / 1e3
+	}
+
 	if hexDecodeErrors > 0 {
 		log.Printf("HEX decode errors: %d\n", hexDecodeErrors)
 	}
-	log.Printf("Finished processing %d lines in %.3f sec (%.3f M lines/sec)\n", linesHashed, runTime, linesPerSecond)
+
+	if unit == "" {
+		log.Printf("Finished processing %d lines in %.3f sec (%.3f lines/sec)\n", linesHashed, runTime, scaled) // < 1 K
+	} else {
+		log.Printf("Finished processing %d lines in %.3f sec (%.3f %s lines/sec)\n", linesHashed, runTime, scaled, unit) // K +
+	}
 }
 
 // main func

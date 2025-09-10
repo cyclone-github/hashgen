@@ -24,10 +24,12 @@ Hashgen is a CLI hash generator written in Go and can be cross compiled for Linu
 To use hashgen, type your mode, wordlist input & hash output files with a simple command line.
 
 ### Features:
+- Maintains original input order [PR 10](https://github.com/cyclone-github/hashgen/pull/10)
 - Supports 38+ modes/functions (see list below)
 - Encode / decode base64 & base58
 - Hex / dehex wordlists
-- Supports ASCII, UTF-8 and $HEX[] wordlist input
+- Supports ASCII, UTF-8 and $HEX[] input
+- Supports UTF-8 (default) or $HEX[] output
 
 | Useage Examples | Command Line |
 |-----------|-----------|
