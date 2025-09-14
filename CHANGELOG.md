@@ -6,7 +6,7 @@ added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
 add modes: mysql5 (300), phpass (400), md5crypt (500), sha256crypt (7400), sha512crypt (1800), Wordpress bcrypt-HMAC-SHA384 (wpbcrypt)
 added hashcat salted modes: -m 10, 20, 110, 120, 1410, 1420, 1310, 1320, 1710, 1720, 10810, 10820
 added hashcat modes: -m 2600, 4500
-cleaned up hashFunc aliases
+cleaned up hashFunc aliases, algo typo, and hex mode
 ```
 ### v1.1.4; 2025-08-23
 ```
