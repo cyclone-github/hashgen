@@ -85,18 +85,18 @@ v1.1.4; 2025-08-23
 	added benchmark flag, -b (to benchmark current mode, disables output)
 	compiled with Go v1.25.0 which gives a small performance boost to multiple algos
 	added notes concerning some NTLM hashes not being crackable with certain hash cracking tools due to encoding gremlins
-v1.2.0-dev; 2025-09-13.2100
+v1.2.0-dev; 2025-09-13.2245
 	addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 	added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
 	added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
 	add modes: mysql5 (300), phpass (400), md5crypt (500), sha256crypt (7400), sha512crypt (1800), Wordpress bcrypt-HMAC-SHA384 (wpbcrypt)
 	added hashcat salted modes: -m 10, 20, 110, 120, 1410, 1420, 1310, 1320, 1710, 1720, 10810, 10820
 	added hashcat modes: -m 2600, 4500
-	cleaned up hashFunc aliases
+	cleaned up hashFunc aliases, algo typo, and hex mode
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.2.0-dev; 2025-09-13.2100\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.2.0-dev; 2025-09-13.2245\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -845,7 +845,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 
 	// $HEX[]
 	case "hex":
-		buf := make([]byte, 6+hex.EncodedLen(len(data))+1) // "$HEX[" + hex + "]"
+		buf := make([]byte, 5+hex.EncodedLen(len(data))+1) // "$HEX[" + hex + "]"
 		copy(buf, "$HEX[")
 		hex.Encode(buf[5:], data)
 		buf[len(buf)-1] = ']'
@@ -971,7 +971,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		h := sha1.Sum(data)
 		return hex.EncodeToString(h[:])
 	// -m 4500 sha1(sha1($pass))
-	case "sha1sah1", "4500":
+	case "sha1sha1", "4500":
 		inner := sha1.Sum(data)
 		var innerHex [40]byte
 		hex.Encode(innerHex[:], inner[:])
@@ -1113,7 +1113,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		// hashpwn	recovered: 99.993%		missed: 1,025	/ 14,344,391
 		// jtr		recovered: 99.961%		missed: 5,631	/ 14,344,391
 		// hashcat	recovered: 99.862%		missed: 19,824	/ 14,344,391
-		input := utf16.Encode([]rune(string(data))) // convert byte slice to string, then to rune slice
+		input := utf16.Encode([]rune(strings.ToValidUTF8(string(data), ""))) // convert byte slice to string, then to rune slice
 		if err := binary.Write(h, binary.LittleEndian, input); err != nil {
 			panic("Failed NTLM hashing")
 		}
@@ -1477,14 +1477,9 @@ func main() {
 	}
 
 	// run sanity check for bcrypt / cost
-	var costProvided bool
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "cost" {
-			costProvided = true
-		}
-	})
+	costProvided := *costFlag != 12
 	if costProvided && *hashFunc != "bcrypt" && *hashFunc != "3200" && *hashFunc != "wpbcrypt" {
-		log.Fatalf("Error: -cost flag is only allowed for bcrypt")
+		log.Fatalf("Error: -cost flag is only allowed for bcrypt modes")
 	}
 	if *hashFunc == "bcrypt" || *hashFunc == "3200" || *hashFunc == "wpbcrypt" {
 		if *costFlag < bcrypt.MinCost || *costFlag > bcrypt.MaxCost {
