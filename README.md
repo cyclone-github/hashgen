@@ -25,11 +25,12 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 
 ### Features:
 - Maintains original input order [PR 10](https://github.com/cyclone-github/hashgen/pull/10)
-- Supports 38+ modes/functions (see list below)
+- Supports 58+ modes/functions (see list below)
 - Encode / decode base64 & base58
 - Hex / dehex wordlists
 - Supports ASCII, UTF-8 and $HEX[] input
 - Supports UTF-8 (default) or $HEX[] output
+- Supports multiple salted modes such as -m 110 / -m 120
 
 | Useage Examples | Command Line |
 |-----------|-----------|
@@ -56,44 +57,83 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 ### Supported Functions:
 | Function:       | Hashcat Mode: |
 |-----------------|----------------|
-| argon2id        | 34000 (slow algo) |
-| base58decode    | |
-| base58encode    | |
-| base64decode    | |
-| base64encode    | |
-| bcrypt          | 3200 (slow algo) |
-| blake2s-256     | |
-| 31000           | (hashcat compatible blake2s-256) |
-| blake2b-256     | |
-| blake2b-384     | |
-| blake2b-512     | |
-| 600             | (hashcat compatible blake2b-512) |
-| crc32           | |
-| 11500           | (hashcat compatible CRC32) |
-| crc64           | |
-| hex             | (encode to $HEX[] format) |
-| dehex/plaintext | 99999 (decode $HEX[]) |
-| keccak-224      | 17700 |
-| keccak-256      | 17800 |
-| keccak-384      | 17900 |
-| keccak-512      | 18000 |
-| md4             | 900 |
-| md5             | 0 |
-| morsecode       | (ITU-R M.1677-1) |
-| ntlm            | 1000 |
-| ripemd-160      | 6000 |
-| sha1            | 100 |
-| sha2-224        | 1300 |
-| sha2-256        | 1400 |
-| sha2-384        | 10800 |
-| sha2-512        | 1700 |
-| sha2-512-224    | |
-| sha2-512-256    | |
-| sha3-224        | 17300 |
-| sha3-256        | 17400 |
-| sha3-384        | 17500 |
-| sha3-512        | 17600 |
-| yescrypt        | (slow algo) |
+| **`Plaintext & Encoding`** | |
+| plaintext / dehex | 99999 (decode $HEX[]) |
+| hex | (encode to $HEX[]) |
+| base64encode | |
+| base64decode | |
+| base58encode | |
+| base58decode | |
+| morsecode | (ITU-R M.1677-1) |
+| | |
+| **`Checksums`** | |
+| crc32 | |
+| 11500 | (hashcat compatible CRC32) |
+| crc64 | |
+| | |
+| **`MDx`** | |
+| md4 | 900 |
+| md5 | 0 |
+| md5passsalt | 10 |
+| md5saltpass | 20 |
+| md5md5 | 2600 |
+| | |
+| **`SHA1`** | |
+| sha1 | 100 |
+| sha1passsalt | 110 |
+| sha1saltpass | 120 |
+| sha1sha1 | 4500 |
+| | |
+| **`SHA2`** | |
+| sha224 | 1300 |
+| sha224passsalt | 1310 |
+| sha224saltpass | 1320 |
+| sha256 | 1400 |
+| sha256passsalt | 1410 |
+| sha256saltpass | 1420 |
+| sha384 | 10800 |
+| sha384passsalt | 10810 |
+| sha384saltpass | 10820 |
+| sha512 | 1700 |
+| sha512passsalt | 1710 |
+| sha512saltpass | 1720 |
+| sha512-224 | |
+| sha512-256 | |
+| | |
+| **`SHA3`** | |
+| sha3-224 | 17300 |
+| sha3-256 | 17400 |
+| sha3-384 | 17500 |
+| sha3-512 | 17600 |
+| | |
+| **`Keccak`** | |
+| keccak-224 | 17700 |
+| keccak-256 | 17800 |
+| keccak-384 | 17900 |
+| keccak-512 | 18000 |
+| | |
+| **`BLAKE2`** | |
+| blake2b-256 | |
+| blake2b-384 | |
+| blake2b-512 | |
+| 600 | (hashcat compatible blake2b-512) |
+| blake2s-256 | |
+| 31000 | (hashcat compatible blake2s-256) |
+| | |
+| **`Other Hashes`** | |
+| ripemd-160 | 6000 |
+| mysql5 | 300 |
+| ntlm | 1000 |
+| | |
+| **`Crypt / KDF`** | |
+| argon2id | 34000 |
+| bcrypt | 3200 |
+| wpbcrypt | (WordPress HMAC-SHA384 + bcrypt) |
+| md5crypt | 500 (`Linux shadow $1$`) |
+| sha256crypt | 7400 (`Linux shadow $5$`) |
+| sha512crypt | 1800 (`Linux shadow $6$`) |
+| phpass | 400 (`PHP/WordPress $P$/phpBB3 $H$`) |
+| yescrypt | (`Linux shadow $y$`) |
 
 ### Benchmarks:
 - https://github.com/cyclone-github/hashgen-testing/tree/main/benchmarks

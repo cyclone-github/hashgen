@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/hmac"
 	"crypto/md5"
 	"crypto/rand"
 	"crypto/sha1"
@@ -84,34 +85,38 @@ v1.1.4; 2025-08-23
 	added benchmark flag, -b (to benchmark current mode, disables output)
 	compiled with Go v1.25.0 which gives a small performance boost to multiple algos
 	added notes concerning some NTLM hashes not being crackable with certain hash cracking tools due to encoding gremlins
-v1.1.5-dev; 2025-09-10.1000
+v1.2.0-dev; 2025-09-13.2245
 	addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 	added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
 	added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
+	add modes: mysql5 (300), phpass (400), md5crypt (500), sha256crypt (7400), sha512crypt (1800), Wordpress bcrypt-HMAC-SHA384 (wpbcrypt)
+	added hashcat salted modes: -m 10, 20, 110, 120, 1410, 1420, 1310, 1320, 1710, 1720, 10810, 10820
+	added hashcat modes: -m 2600, 4500
+	cleaned up hashFunc aliases, algo typo, and hex mode
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "Cyclone hash generator v1.1.5-dev; 2025-09-10.1000\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.2.0-dev; 2025-09-13.2245\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
 func helpFunc() {
-	versionFunc() // some algos are commented out due to not being implemented into this package
+	versionFunc()
 	str := "\nExample Usage:\n" +
 		"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n" +
 		"./hashgen -m bcrypt -cost 8 -w wordlist.txt\n" +
 		"cat wordlist | ./hashgen -m md5 -hashplain\n" +
-		"\nAll Supported Options:\n-m {mode}\n-w {wordlist input}\n-t {cpu threads}\n-o {wordlist output}\n-b {benchmark mode}\n-cost {bcrypt}\n-hashplain {generates hash:plain pairs}\n" +
+		"\nAll Supported Options:\n-m {mode}\n-w {wordlist input}\n-t {cpu threads}\n-o {wordlist output}\n-b {benchmark mode}\n-cost {bcrypt, default=12}\n-hashplain {generates hash:plain pairs}\n" +
 		"\nIf -w is not specified, defaults to stdin\n" +
 		"If -o is not specified, defaults to stdout\n" +
 		"If -t is not specified, defaults to max available CPU threads\n" +
-		"\nModes:\t\tHashcat Mode Equivalent:\n" +
-		"argon2id\t34000 (slow algo)\n" +
+		"\nModes:\t\tHashcat Mode (notes):\n" +
+		"argon2id\t34000\n" +
 		"base58decode\n" +
 		"base58encode\n" +
 		"base64decode\n" +
 		"base64encode\n" +
-		"bcrypt\t\t3200 (slow algo)\n" +
+		"bcrypt\t\t3200\n" +
 		"blake2s-256\n" +
 		"31000\t\t(hashcat compatible blake2s-256)\n" +
 		"blake2b-256\n" +
@@ -129,24 +134,48 @@ func helpFunc() {
 		"keccak-512\t18000\n" +
 		"md4\t\t900\n" +
 		"md5\t\t0\n" +
+		"md5passsalt\t10\n" +
+		"md5saltpass\t20\n" +
+		"md5md5\t\t2600\n" +
+		"md5crypt\t500 (Linux shadow $1$)\n" +
+		"mysql4/mysql5\t300\n" +
 		"morsecode\t(ITU-R M.1677-1)\n" +
-		"ntlm\t\t1000\n" +
+		"ntlm\t\t1000 (Windows NT)\n" +
+		"phpass\t\t400\n" +
 		"ripemd-160\t6000\n" +
-		"sha1 \t\t100\n" +
-		"sha2-224\t1300\n" +
-		"sha2-256\t1400\n" +
-		"sha2-384\t10800\n" +
-		"sha2-512\t1700\n" +
-		"sha2-512-224\n" +
-		"sha2-512-256\n" +
+		"sha1\t\t100\n" +
+		"sha1sha1\t4500\n" +
+		"sha1passsalt\t110\n" +
+		"sha1saltpass\t120\n" +
+		"sha224\t\t1300\n" +
+		"sha224passsalt\t1310\n" +
+		"sha224saltpass\t1320\n" +
+		"sha256\t\t1400\n" +
+		"sha256passsalt\t1410\n" +
+		"sha256saltpass\t1420\n" +
+		"sha256crypt\t7400 (Linux shadow $5$)\n" +
+		"sha384\t\t10800\n" +
+		"sha384passsalt\t10810\n" +
+		"sha384saltpass\t10820\n" +
+		"sha512\t\t1700\n" +
+		"sha512passsalt\t1710\n" +
+		"sha512saltpass\t1720\n" +
+		"sha512crypt\t1800 (Linux shadow $6$)\n" +
+		"sha512-224\n" +
+		"sha512-256\n" +
 		"sha3-224\t17300\n" +
 		"sha3-256\t17400\n" +
 		"sha3-384\t17500\n" +
 		"sha3-512\t17600\n" +
-		"yescrypt\t(slow algo)\n"
+		"wpbcrypt\t(WordPress bcrypt-HMAC-SHA384)\n" +
+		"yescrypt\t(Linux shadow $y$)\n"
 	fmt.Fprintln(os.Stderr, str)
 	os.Exit(0)
 }
+
+var (
+	cryptBase64 = []byte("./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+)
 
 // dehex wordlist line
 /* note:
@@ -252,12 +281,571 @@ func encodeToMorseBytes(input []byte) []byte {
 	return result
 }
 
+// phpassMD5 -m 400
+func phpassMD5(password []byte, mode string, countLog2 int, saltRaw []byte) string {
+	prefix := byte('P')
+	if mode == "phpbb3" {
+		prefix = 'H'
+	}
+	if countLog2 <= 0 {
+		countLog2 = 11
+	}
+	if saltRaw == nil || len(saltRaw) < 6 {
+		saltRaw = make([]byte, 6)
+		if _, err := rand.Read(saltRaw); err != nil {
+			fmt.Fprintln(os.Stderr, "phpass salt error:", err)
+			return ""
+		}
+	} else if len(saltRaw) > 6 {
+		saltRaw = saltRaw[:6]
+	}
+	encode64 := func(src []byte, outLen int) []byte {
+		dst := make([]byte, 0, outLen)
+		for i := 0; i < len(src); {
+			var v uint32 = uint32(src[i])
+			i++
+			dst = append(dst, cryptBase64[v&0x3f])
+			if i < len(src) {
+				v |= uint32(src[i]) << 8
+			}
+			dst = append(dst, cryptBase64[(v>>6)&0x3f])
+			if i >= len(src) {
+				break
+			}
+			i++
+			if i < len(src) {
+				v |= uint32(src[i]) << 16
+			}
+			dst = append(dst, cryptBase64[(v>>12)&0x3f])
+			if i >= len(src) {
+				break
+			}
+			i++
+			dst = append(dst, cryptBase64[(v>>18)&0x3f])
+			if len(dst) >= outLen {
+				break
+			}
+		}
+		if len(dst) > outLen {
+			return dst[:outLen]
+		}
+		return dst
+	}
+	saltEnc := encode64(saltRaw, 8)
+	h := md5.New()
+	h.Write(saltEnc)
+	h.Write(password)
+	sum := h.Sum(nil)
+	rounds := 1 << countLog2
+	for i := 0; i < rounds; i++ {
+		h.Reset()
+		h.Write(sum)
+		h.Write(password)
+		sum = h.Sum(nil)
+	}
+	digestEnc := encode64(sum, 22)
+	out := make([]byte, 3+1+8+22)
+	out[0], out[1], out[2] = '$', prefix, '$'
+	out[3] = cryptBase64[countLog2]
+	copy(out[4:12], saltEnc)
+	copy(out[12:], digestEnc)
+	return string(out)
+}
+
+// md5crypt - linux shadow "$1$<salt>$<hash>"
+func md5crypt(password []byte) string {
+	const magic = "$1$"
+	salt := make([]byte, 8)
+	rb := make([]byte, 8)
+	if _, err := rand.Read(rb); err != nil {
+		for i := 0; i < 8; i++ {
+			salt[i] = cryptBase64[(i*37+13)&0x3f]
+		}
+	} else {
+		for i := 0; i < 8; i++ {
+			salt[i] = cryptBase64[int(rb[i])&0x3f]
+		}
+	}
+
+	a := md5.New()
+	a.Write(password)
+	a.Write([]byte(magic))
+	a.Write(salt)
+
+	alt := md5.New()
+	alt.Write(password)
+	alt.Write(salt)
+	alt.Write(password)
+	altSum := alt.Sum(nil)
+
+	pwLen := len(password)
+	for n := pwLen; n > 0; n -= 16 {
+		if n > 16 {
+			a.Write(altSum)
+		} else {
+			a.Write(altSum[:n])
+		}
+	}
+
+	for n := pwLen; n > 0; n >>= 1 {
+		if (n & 1) == 1 {
+			a.Write([]byte{0})
+		} else if pwLen > 0 {
+			a.Write(password[:1])
+		} else {
+			a.Write([]byte{0})
+		}
+	}
+
+	final := a.Sum(nil)
+
+	for i := 0; i < 1000; i++ {
+		ri := md5.New()
+		if (i & 1) == 1 {
+			ri.Write(password)
+		} else {
+			ri.Write(final)
+		}
+		if i%3 != 0 {
+			ri.Write(salt)
+		}
+		if i%7 != 0 {
+			ri.Write(password)
+		}
+		if (i & 1) == 1 {
+			ri.Write(final)
+		} else {
+			ri.Write(password)
+		}
+		final = ri.Sum(nil)
+	}
+
+	out := make([]byte, 0, 3+1+8+1+22)
+	out = append(out, magic...)
+	out = append(out, salt...)
+	out = append(out, '$')
+
+	var v uint32
+
+	v = uint32(final[0])<<16 | uint32(final[6])<<8 | uint32(final[12])
+	for j := 0; j < 4; j++ {
+		out = append(out, cryptBase64[v&0x3f])
+		v >>= 6
+	}
+
+	v = uint32(final[1])<<16 | uint32(final[7])<<8 | uint32(final[13])
+	for j := 0; j < 4; j++ {
+		out = append(out, cryptBase64[v&0x3f])
+		v >>= 6
+	}
+
+	v = uint32(final[2])<<16 | uint32(final[8])<<8 | uint32(final[14])
+	for j := 0; j < 4; j++ {
+		out = append(out, cryptBase64[v&0x3f])
+		v >>= 6
+	}
+
+	v = uint32(final[3])<<16 | uint32(final[9])<<8 | uint32(final[15])
+	for j := 0; j < 4; j++ {
+		out = append(out, cryptBase64[v&0x3f])
+		v >>= 6
+	}
+
+	v = uint32(final[4])<<16 | uint32(final[10])<<8 | uint32(final[5])
+	for j := 0; j < 4; j++ {
+		out = append(out, cryptBase64[v&0x3f])
+		v >>= 6
+	}
+
+	v = uint32(0)<<16 | uint32(0)<<8 | uint32(final[11])
+	for j := 0; j < 2; j++ {
+		out = append(out, cryptBase64[v&0x3f])
+		v >>= 6
+	}
+
+	return string(out)
+}
+
+// sha256crypt - linux shadow $5$[rounds=R$]<salt>$<hash>
+func sha256crypt(password []byte) string {
+	const magic = "$5$"
+	rounds := 5000
+	salt := make([]byte, 16)
+	rb := make([]byte, 16)
+	if _, err := rand.Read(rb); err != nil {
+		for i := 0; i < 16; i++ {
+			salt[i] = cryptBase64[(i*37+13)&0x3f]
+		}
+	} else {
+		for i := 0; i < 16; i++ {
+			salt[i] = cryptBase64[int(rb[i])&0x3f]
+		}
+	}
+
+	a := sha256.New()
+	a.Write(password)
+	a.Write(salt)
+
+	alt := sha256.New()
+	alt.Write(password)
+	alt.Write(salt)
+	alt.Write(password)
+	altSum := alt.Sum(nil)
+
+	pwLen := len(password)
+	for n := pwLen; n > 0; n -= 32 {
+		if n > 32 {
+			a.Write(altSum)
+		} else {
+			a.Write(altSum[:n])
+		}
+	}
+
+	for n := pwLen; n > 0; n >>= 1 {
+		if (n & 1) == 1 {
+			a.Write(altSum)
+		} else {
+			a.Write(password)
+		}
+	}
+	adigest := a.Sum(nil)
+
+	dp := sha256.New()
+	for i := 0; i < pwLen; i++ {
+		dp.Write(password)
+	}
+	dpSum := dp.Sum(nil)
+	P := make([]byte, pwLen)
+	for i := 0; i < pwLen; i += 32 {
+		end := i + 32
+		if end > pwLen {
+			end = pwLen
+		}
+		copy(P[i:end], dpSum[:end-i])
+	}
+
+	ds := sha256.New()
+	for i := 0; i < 16+int(adigest[0]); i++ {
+		ds.Write(salt)
+	}
+	dsSum := ds.Sum(nil)
+	S := make([]byte, len(salt))
+	copy(S, dsSum[:len(salt)])
+
+	digest := adigest
+	for i := 0; i < rounds; i++ {
+		c := sha256.New()
+		if (i & 1) == 1 {
+			c.Write(P)
+		} else {
+			c.Write(digest)
+		}
+		if i%3 != 0 {
+			c.Write(S)
+		}
+		if i%7 != 0 {
+			c.Write(P)
+		}
+		if (i & 1) == 1 {
+			c.Write(digest)
+		} else {
+			c.Write(P)
+		}
+		digest = c.Sum(nil)
+	}
+
+	out := make([]byte, 0, len(magic)+len(salt)+1+43)
+	out = append(out, magic...)
+	out = append(out, salt...)
+	out = append(out, '$')
+
+	enc := func(b2, b1, b0 byte, n int) {
+		v := uint32(b2)<<16 | uint32(b1)<<8 | uint32(b0)
+		for j := 0; j < n; j++ {
+			out = append(out, cryptBase64[v&0x3f])
+			v >>= 6
+		}
+	}
+
+	enc(digest[0], digest[10], digest[20], 4)
+	enc(digest[21], digest[1], digest[11], 4)
+	enc(digest[12], digest[22], digest[2], 4)
+	enc(digest[3], digest[13], digest[23], 4)
+	enc(digest[24], digest[4], digest[14], 4)
+	enc(digest[15], digest[25], digest[5], 4)
+	enc(digest[6], digest[16], digest[26], 4)
+	enc(digest[27], digest[7], digest[17], 4)
+	enc(digest[18], digest[28], digest[8], 4)
+	enc(digest[9], digest[19], digest[29], 4)
+	enc(0, digest[31], digest[30], 3)
+
+	return string(out)
+}
+
+// sha512crypt - linux shadow ($6$)
+func sha512crypt(password []byte) string {
+	const magic = "$6$"
+	const rounds = 5000
+	salt := make([]byte, 16)
+	{
+		var rb [16]byte
+		if _, err := rand.Read(rb[:]); err != nil {
+			return ""
+		}
+		for i := 0; i < 16; i++ {
+			salt[i] = cryptBase64[rb[i]&0x3f]
+		}
+	}
+
+	saltBytes := salt
+	keyLen := len(password)
+	saltLen := len(saltBytes)
+
+	a := sha512.New()
+	a.Write(password)
+	a.Write(saltBytes)
+
+	alt := sha512.New()
+	alt.Write(password)
+	alt.Write(saltBytes)
+	alt.Write(password)
+	altSum := alt.Sum(nil)
+
+	if keyLen > 0 {
+		n := keyLen / 64
+		for i := 0; i < n; i++ {
+			a.Write(altSum)
+		}
+		a.Write(altSum[:keyLen%64])
+	}
+
+	for cnt := keyLen; cnt > 0; cnt >>= 1 {
+		if (cnt & 1) != 0 {
+			a.Write(altSum)
+		} else {
+			a.Write(password)
+		}
+	}
+	final := a.Sum(nil)
+
+	dp := sha512.New()
+	for i := 0; i < keyLen; i++ {
+		dp.Write(password)
+	}
+	dpSum := dp.Sum(nil)
+	P := make([]byte, keyLen)
+	for i := 0; i+64 <= keyLen; i += 64 {
+		copy(P[i:i+64], dpSum)
+	}
+	copy(P[(keyLen/64)*64:], dpSum[:keyLen%64])
+
+	ds := sha512.New()
+	reps := 16 + int(final[0])
+	for i := 0; i < reps; i++ {
+		ds.Write(saltBytes)
+	}
+	dsSum := ds.Sum(nil)
+	S := make([]byte, saltLen)
+	for i := 0; i+64 <= saltLen; i += 64 {
+		copy(S[i:i+64], dsSum)
+	}
+	copy(S[(saltLen/64)*64:], dsSum[:saltLen%64])
+
+	for i := 0; i < rounds; i++ {
+		c := sha512.New()
+		if (i & 1) != 0 {
+			c.Write(P)
+		} else {
+			c.Write(final)
+		}
+		if i%3 != 0 {
+			c.Write(S)
+		}
+		if i%7 != 0 {
+			c.Write(P)
+		}
+		if (i & 1) != 0 {
+			c.Write(final)
+		} else {
+			c.Write(P)
+		}
+		final = c.Sum(nil)
+	}
+
+	enc := func(dst *[]byte, b2, b1, b0 byte, n int) {
+		w := uint32(b2)<<16 | uint32(b1)<<8 | uint32(b0)
+		for i := 0; i < n; i++ {
+			*dst = append(*dst, cryptBase64[w&0x3f])
+			w >>= 6
+		}
+	}
+
+	buf := make([]byte, 0, len(magic)+saltLen+1+86)
+	buf = append(buf, magic...)
+	buf = append(buf, saltBytes...)
+	buf = append(buf, '$')
+
+	enc(&buf, final[0], final[21], final[42], 4)
+	enc(&buf, final[22], final[43], final[1], 4)
+	enc(&buf, final[44], final[2], final[23], 4)
+	enc(&buf, final[3], final[24], final[45], 4)
+	enc(&buf, final[25], final[46], final[4], 4)
+	enc(&buf, final[47], final[5], final[26], 4)
+	enc(&buf, final[6], final[27], final[48], 4)
+	enc(&buf, final[28], final[49], final[7], 4)
+	enc(&buf, final[50], final[8], final[29], 4)
+	enc(&buf, final[9], final[30], final[51], 4)
+	enc(&buf, final[31], final[52], final[10], 4)
+	enc(&buf, final[53], final[11], final[32], 4)
+	enc(&buf, final[12], final[33], final[54], 4)
+	enc(&buf, final[34], final[55], final[13], 4)
+	enc(&buf, final[56], final[14], final[35], 4)
+	enc(&buf, final[15], final[36], final[57], 4)
+	enc(&buf, final[37], final[58], final[16], 4)
+	enc(&buf, final[59], final[17], final[38], 4)
+	enc(&buf, final[18], final[39], final[60], 4)
+	enc(&buf, final[40], final[61], final[19], 4)
+	enc(&buf, final[62], final[20], final[41], 4)
+	enc(&buf, 0, 0, final[63], 2)
+
+	return string(buf)
+}
+
+// WordPress bcrypt: $wp$2y$12$<22-salt><31-hash>
+// bcrypt(base64(HMAC-SHA384(key="wp-sha384",$password)))
+func wpbcrypt(password []byte, cost int) string {
+	const (
+		wpPrefix     = "$wp$"
+		bcryptPrefix = "$2y$"
+	)
+
+	mac := hmac.New(sha512.New384, []byte("wp-sha384"))
+	mac.Write(password)
+	tag := mac.Sum(nil)
+
+	b64 := make([]byte, base64.StdEncoding.EncodedLen(len(tag)))
+	base64.StdEncoding.Encode(b64, tag)
+
+	bh, err := bcrypt.GenerateFromPassword(b64, cost)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "wpbcrypt error:", err)
+		return ""
+	}
+	s := string(bh)
+
+	if len(s) < 4 || s[0] != '$' {
+		fmt.Fprintln(os.Stderr, "wpbcrypt: unexpected bcrypt format")
+		return ""
+	}
+	s = bcryptPrefix + s[4:]
+
+	return wpPrefix + s[1:]
+}
+
 // supported hash algos / modes
 func hashBytes(hashFunc string, data []byte, cost int) string {
+	// random salt gen
+	makeSaltHex := func() ([]byte, bool) {
+		saltRaw := make([]byte, 8)
+		if _, err := rand.Read(saltRaw); err != nil {
+			fmt.Fprintln(os.Stderr, "salt generation error:", err)
+			return nil, false
+		}
+		saltHex := make([]byte, hex.EncodedLen(len(saltRaw)))
+		hex.Encode(saltHex, saltRaw)
+		return saltHex, true
+	}
+
 	switch hashFunc {
+	// -m 110 sha1(pass.salt), -m 120 sha1(salt.pass)
+	case "110", "sha1passsalt", "120", "sha1saltpass":
+		salt, ok := makeSaltHex()
+		if !ok {
+			return ""
+		}
+		h := sha1.New()
+		if hashFunc == "120" || hashFunc == "sha1saltpass" {
+			h.Write(salt) // salt first
+			h.Write(data) // then pass
+		} else {
+			h.Write(data) // pass first
+			h.Write(salt) // then salt
+		}
+		sum := h.Sum(nil)
+		// 20-byte SHA1 -> 40 hex chars
+		out := make([]byte, 40+1+len(salt)) // hex(sum) + ":" + saltHex
+		hex.Encode(out[:40], sum)
+		out[40] = ':'
+		copy(out[41:], salt)
+		return string(out)
+	// -m 1310 sha224(pass.salt), -m 1320 sha224(salt.pass)
+	case "1310", "sha224passsalt", "1320", "sha224saltpass":
+		salt, ok := makeSaltHex() // returns ASCII-hex salt
+		if !ok {
+			return ""
+		}
+		h := sha256.New224()
+		if hashFunc == "1320" || hashFunc == "sha224saltpass" {
+			h.Write(salt) // salt first
+			h.Write(data) // then pass
+		} else {
+			h.Write(data) // pass first
+			h.Write(salt) // then salt
+		}
+		sum := h.Sum(nil)
+		// SHA-224 = 28 bytes -> 56 hex chars
+		out := make([]byte, 56+1+len(salt)) // hex(sum) + ":" + saltHex
+		hex.Encode(out[:56], sum)
+		out[56] = ':'
+		copy(out[57:], salt)
+		return string(out)
+	// -m 1410 sha256(pass.salt), -m 1420 sha256(salt.pass)
+	case "1410", "sha256passsalt", "1420", "sha256saltpass":
+		salt, ok := makeSaltHex() // reuse your helper that returns ASCII-hex salt
+		if !ok {
+			return ""
+		}
+		h := sha256.New()
+		if hashFunc == "1420" || hashFunc == "sha256saltpass" {
+			h.Write(salt) // salt first
+			h.Write(data) // then pass
+		} else {
+			h.Write(data) // pass first
+			h.Write(salt) // then salt
+		}
+		sum := h.Sum(nil)
+		// 32-byte SHA-256 -> 64 hex chars
+		out := make([]byte, 64+1+len(salt)) // hex(sum) + ":" + saltHex
+		hex.Encode(out[:64], sum)
+		out[64] = ':'
+		copy(out[65:], salt)
+		return string(out)
+	// -m 1710 sha512(pass.salt), -m 1720 sha512(salt.pass)
+	case "1710", "sha512passsalt", "1720", "sha512saltpass":
+		salt, ok := makeSaltHex() // ASCII-hex salt
+		if !ok {
+			return ""
+		}
+		h := sha512.New()
+		if hashFunc == "1720" || hashFunc == "sha512saltpass" {
+			h.Write(salt) // salt first
+			h.Write(data) // then pass
+		} else {
+			h.Write(data) // pass first
+			h.Write(salt) // then salt
+		}
+		sum := h.Sum(nil)
+
+		// 64-byte SHA-512 -> 128 hex chars
+		out := make([]byte, 128+1+len(salt)) // hex(sum) + ":" + saltHex
+		hex.Encode(out[:128], sum)
+		out[128] = ':'
+		copy(out[129:], salt)
+		return string(out)
+
 	// $HEX[]
 	case "hex":
-		buf := make([]byte, 6+hex.EncodedLen(len(data))+1) // "$HEX[" + hex + "]"
+		buf := make([]byte, 5+hex.EncodedLen(len(data))+1) // "$HEX[" + hex + "]"
 		copy(buf, "$HEX[")
 		hex.Encode(buf[5:], data)
 		buf[len(buf)-1] = ']'
@@ -274,7 +862,6 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 			fmt.Fprintln(os.Stderr, "yescrypt error:", err)
 			return ""
 		}
-		const itoa64 = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" // custom yescrypt base64 alphabet
 		encode64 := func(src []byte) string {
 			var dst []byte
 			var value uint32
@@ -283,13 +870,13 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 				value |= uint32(src[i]) << bits
 				bits += 8
 				for bits >= 6 {
-					dst = append(dst, itoa64[value&0x3f])
+					dst = append(dst, cryptBase64[value&0x3f])
 					value >>= 6
 					bits -= 6
 				}
 			}
 			if bits > 0 {
-				dst = append(dst, itoa64[value&0x3f])
+				dst = append(dst, cryptBase64[value&0x3f])
 			}
 			return string(dst)
 		}
@@ -297,7 +884,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		encodedKey := encode64(key)
 		return fmt.Sprintf("$y$jC5$%s$%s", encodedSalt, encodedKey)
 	// argon2id
-	case "argon2id", "argon2", "argon":
+	case "argon2id", "34000":
 		salt := make([]byte, 16) // random 16-byte salt
 		if _, err := rand.Read(salt); err != nil {
 			fmt.Fprintln(os.Stderr, "Error generating salt:", err)
@@ -320,6 +907,9 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 			return ""
 		}
 		return string(hashed)
+	// wordpress bcrypt
+	case "wpbcrypt":
+		return wpbcrypt(data, cost)
 	// morsecode
 	case "morsecode", "morse":
 		return string(encodeToMorseBytes(data))
@@ -332,60 +922,139 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 	case "md5", "0":
 		h := md5.Sum(data)
 		return hex.EncodeToString(h[:])
+	// -m 10 md5(pass.salt), -m 20 md5(salt.pass)
+	case "10", "md5passsalt", "20", "md5saltpass":
+		salt, ok := makeSaltHex()
+		if !ok {
+			return ""
+		}
+		h := md5.New()
+		if hashFunc == "20" || hashFunc == "md5saltpass" {
+			h.Write(salt) // salt first
+			h.Write(data) // then pass
+		} else {
+			h.Write(data) // pass first
+			h.Write(salt) // then salt
+		}
+		sum := h.Sum(nil)
+		sumHexLen := hex.EncodedLen(len(sum))
+		out := make([]byte, sumHexLen+1+len(salt)) // hex(sum) + ":" + saltHex
+		hex.Encode(out[:sumHexLen], sum)
+		out[sumHexLen] = ':'
+		copy(out[sumHexLen+1:], salt)
+		return string(out)
+	// -m 2600 md5(md5($pass))
+	case "md5md5", "2600":
+		inner := md5.Sum(data)
+		var innerHex [32]byte
+		hex.Encode(innerHex[:], inner[:])
+		outer := md5.Sum(innerHex[:])
+		return hex.EncodeToString(outer[:])
+	// mysql5 -m 300
+	case "mysql4", "mysql5", "300":
+		first := sha1.Sum(data)
+		second := sha1.Sum(first[:])
+		buf := make([]byte, 1+hex.EncodedLen(len(second)))
+		buf[0] = '*'
+		hex.Encode(buf[1:], second[:])
+		for i := 1; i < len(buf); i++ {
+			if buf[i] >= 'a' && buf[i] <= 'f' {
+				buf[i] -= 32
+			}
+		}
+		return string(buf)
+	// phpass -m 400
+	case "phpass", "phpbb3", "400": // phpass = $P$, phpbb3 = $H$
+		return phpassMD5(data, hashFunc, 11, nil)
 	// sha1 -m 100
 	case "sha1", "100":
 		h := sha1.Sum(data)
 		return hex.EncodeToString(h[:])
+	// -m 4500 sha1(sha1($pass))
+	case "sha1sha1", "4500":
+		inner := sha1.Sum(data)
+		var innerHex [40]byte
+		hex.Encode(innerHex[:], inner[:])
+		outer := sha1.Sum(innerHex[:])
+		return hex.EncodeToString(outer[:])
 	// sha2-224 -m 1300
-	case "sha2-224", "sha2_224", "sha2224", "sha224", "1300":
+	case "sha2-224", "sha224", "1300":
 		h := sha256.New224()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	// sha2-256 -m 1400
-	case "sha2-256", "sha2_256", "sha2256", "sha256", "1400":
+	case "sha2-256", "sha256", "1400":
 		h := sha256.Sum256(data)
 		return hex.EncodeToString(h[:])
+	// sha256crypt ($5$) -m 7400
+	case "sha256crypt", "7400":
+		return sha256crypt(data)
+	// sha512crypt ($6$) -m 1800
+	case "sha512crypt", "1800":
+		return sha512crypt(data)
 	// sha2-384 -m 10800
 	case "sha2-384", "sha384", "10800":
 		h := sha512.New384()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
+	// -m 10810 sha384(pass.salt), -m 10820 sha384(salt.pass)
+	case "10810", "sha384passsalt", "10820", "sha384saltpass":
+		salt, ok := makeSaltHex() // ASCII-hex salt
+		if !ok {
+			return ""
+		}
+		h := sha512.New384()
+		if hashFunc == "10820" || hashFunc == "sha384saltpass" {
+			h.Write(salt) // salt first
+			h.Write(data) // then pass
+		} else {
+			h.Write(data) // pass first
+			h.Write(salt) // then salt
+		}
+		sum := h.Sum(nil)
+
+		// SHA-384 = 48 bytes -> 96 hex chars
+		out := make([]byte, 96+1+len(salt)) // hex(sum) + ":" + saltHex
+		hex.Encode(out[:96], sum)
+		out[96] = ':'
+		copy(out[97:], salt)
+		return string(out)
 	// sha2-512 -m 1700
-	case "sha2-512", "sha2_512", "sha2512", "sha512", "1700":
+	case "sha2-512", "sha512", "1700":
 		h := sha512.Sum512(data)
 		return hex.EncodeToString(h[:])
 	// sha2-512-224
-	case "sha2-512-224", "sha512_224", "sha512224":
+	case "sha2-512-224", "sha512-224", "sha512224":
 		h := sha512.New512_224()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	// sha2-512-256
-	case "sha2-512-256", "sha512_256", "sha512256":
+	case "sha2-512-256", "sha512-256", "sha512256":
 		h := sha512.New512_256()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	// ripemd-160 -m 6000
-	case "ripemd-160", "ripemd_160", "ripemd160", "6000":
+	case "ripemd-160", "ripemd160", "6000":
 		h := ripemd160.New()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	// sha3-224 -m 17300
-	case "sha3-224", "sha3_224", "sha3224", "17300":
+	case "sha3-224", "sha3224", "17300":
 		h := sha3.New224()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	// sha3-256 om 17400
-	case "sha3-256", "sha3_256", "sha3256", "17400":
+	case "sha3-256", "sha3256", "17400":
 		h := sha3.New256()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	// sha3-384 om 17500
-	case "sha3-384", "sha3_384", "sha3384", "17500":
+	case "sha3-384", "sha3384", "17500":
 		h := sha3.New384()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
 	// sha3-512 om 17600
-	case "sha3-512", "sha3_512", "sha3512", "17600":
+	case "sha3-512", "sha3512", "17600":
 		h := sha3.New512()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil))
@@ -430,6 +1099,9 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		b := make([]byte, 8)
 		binary.BigEndian.PutUint64(b, h)
 		return hex.EncodeToString(b)
+	// md5crypt -m 500
+	case "md5crypt", "500":
+		return md5crypt(data)
 	// ntlm -m 1000
 	case "ntlm", "1000":
 		h := md4.New()
@@ -441,7 +1113,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		// hashpwn	recovered: 99.993%		missed: 1,025	/ 14,344,391
 		// jtr		recovered: 99.961%		missed: 5,631	/ 14,344,391
 		// hashcat	recovered: 99.862%		missed: 19,824	/ 14,344,391
-		input := utf16.Encode([]rune(string(data))) // convert byte slice to string, then to rune slice
+		input := utf16.Encode([]rune(strings.ToValidUTF8(string(data), ""))) // convert byte slice to string, then to rune slice
 		if err := binary.Write(h, binary.LittleEndian, input); err != nil {
 			panic("Failed NTLM hashing")
 		}
@@ -479,12 +1151,11 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		copy(buf, pS)
 		hex.Encode(buf[len(pS):], h[:])
 		return string(buf)
-
 	// base64 encode
-	case "base64encode", "base64-e", "base64e":
+	case "base64encode", "base64e":
 		return base64.StdEncoding.EncodeToString(data)
 	// base64 decode
-	case "base64decode", "base64-d", "base64d":
+	case "base64decode", "base64d":
 		decodedBytes := make([]byte, base64.StdEncoding.DecodedLen(len(data)))
 		n, err := base64.StdEncoding.Decode(decodedBytes, data)
 		if err != nil {
@@ -493,11 +1164,10 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		}
 		return string(decodedBytes[:n]) // convert the decoded bytes to a string
 	// base58 encode
-	case "base58encode", "base58-e", "base58e":
+	case "base58encode", "base58e":
 		return base58.StdEncoding.EncodeToString(data)
-
 	// base58 decode
-	case "base58decode", "base58-d", "base58d":
+	case "base58decode", "base58d":
 		trimmedData := bytes.TrimSpace(data)
 		decodedBytes, err := base58.StdEncoding.DecodeString(string(trimmedData))
 		if err != nil {
@@ -505,9 +1175,8 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 			return ""
 		}
 		return string(decodedBytes)
-
-		// plaintext, dehex, -m 99999
-	case "plaintext", "plain", "99999", "dehex", "unhex":
+	// plaintext, dehex, -m 99999
+	case "plaintext", "dehex", "99999":
 		// passthrough & run checkForHex
 		return string(data)
 
@@ -543,13 +1212,39 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 	//var readBufferSize = 1024 * 1024 // read buffer
 	var readBufferSize = numGoroutines + 16*32*1024 // variable read buffer
 
-	// lower read buffer for bcrypt (varies with -cost)
-	if hashFunc == "bcrypt" || hashFunc == "3200" {
-		readBufferSize = numGoroutines/cost + 32*2
+	// lower read buffer for slow(ish) algos
+	{
+		bufFixed := map[string]bool{
+			"phpass": true, "phpbb3": true, "400": true,
+			"md5crypt": true, "500": true,
+			"sha256crypt": true, "7400": true,
+			"sha512crypt": true, "1800": true,
+		}
+		if bufFixed[hashFunc] {
+			readBufferSize = numGoroutines + 16*32
+		}
 	}
+
+	// lower read buffer for bcrypt-family (scale by cost)
+	{
+		bufBcrypt := map[string]bool{
+			"bcrypt": true, "3200": true,
+			"wpbcrypt": true,
+		}
+		if bufBcrypt[hashFunc] {
+			readBufferSize = numGoroutines/cost + 32*2
+		}
+	}
+
 	// lower read buffer for argon2id, yescrypt
-	if hashFunc == "argon2id" || hashFunc == "argon2" || hashFunc == "argon" || hashFunc == "yescrypt" {
-		readBufferSize = numGoroutines + 8*2
+	{
+		bufSlow := map[string]bool{
+			"argon2id": true, "argon2": true, "argon": true, "34000": true,
+			"yescrypt": true,
+		}
+		if bufSlow[hashFunc] {
+			readBufferSize = numGoroutines + 8*2
+		}
 	}
 
 	var writeBufferSize = 2 * readBufferSize // write buffer (larger than read buffer)
@@ -742,7 +1437,7 @@ func main() {
 	hashPlainOutput := flag.Bool("hashplain", false, "Enable hashplain output (hash:plain)")
 	benchmark := flag.Bool("b", false, "Benchmark mode (disables output)")
 	threads := flag.Int("t", 0, "Number of CPU threads to use")
-	costFlag := flag.Int("cost", 8, "Bcrypt cost (4-31)")
+	costFlag := flag.Int("cost", 12, "Bcrypt cost (4-31)")
 	version := flag.Bool("version", false, "Program version:")
 	cyclone := flag.Bool("cyclone", false, "hashgen")
 	help := flag.Bool("help", false, "Prints help:")
@@ -782,16 +1477,11 @@ func main() {
 	}
 
 	// run sanity check for bcrypt / cost
-	var costProvided bool
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "cost" {
-			costProvided = true
-		}
-	})
-	if costProvided && *hashFunc != "bcrypt" && *hashFunc != "3200" {
-		log.Fatalf("Error: -cost flag is only allowed for bcrypt")
+	costProvided := *costFlag != 12
+	if costProvided && *hashFunc != "bcrypt" && *hashFunc != "3200" && *hashFunc != "wpbcrypt" {
+		log.Fatalf("Error: -cost flag is only allowed for bcrypt modes")
 	}
-	if *hashFunc == "bcrypt" || *hashFunc == "3200" {
+	if *hashFunc == "bcrypt" || *hashFunc == "3200" || *hashFunc == "wpbcrypt" {
 		if *costFlag < bcrypt.MinCost || *costFlag > bcrypt.MaxCost {
 			log.Fatalf("Invalid bcrypt cost: must be between %d and %d", bcrypt.MinCost, bcrypt.MaxCost)
 		}
@@ -810,6 +1500,7 @@ func main() {
 
 	runtime.GOMAXPROCS(numThreads) // set CPU threads
 
+	// start main logic (startProc)
 	startProc(*hashFunc, *inputFile, *outputFile, *hashPlainOutput, numThreads, *costFlag)
 }
 
