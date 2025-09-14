@@ -18,13 +18,14 @@ import (
 	"hash/crc64"
 	"io"
 	"log"
+	"math/bits"
 	"os"
 	"runtime"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/cyclone-github/base58"
 	"github.com/ebfe/keccak" // keccak 224/384
@@ -79,13 +80,13 @@ v1.1.2; 2025-04-08
 v1.1.3; 2025-06-30
 	added mode "hex" for $HEX[] formatted output
 	added alias "dehex" to "plaintext" mode
-	improved "plaintext/dehex" logic to decode both $HEX[] --> and raw base-16 input <-- (removed decoding raw base 16, see changes for v1.1.5)
+	improved "plaintext/dehex" logic to decode both $HEX[] --> and raw base-16 input <-- (removed decoding raw base 16, see changes for v1.2.0)
 v1.1.4; 2025-08-23
 	added modes: keccak-224, keccak-384, blake2b-256, blake2b-384, blake2b-512, blake2c-256
 	added benchmark flag, -b (to benchmark current mode, disables output)
 	compiled with Go v1.25.0 which gives a small performance boost to multiple algos
 	added notes concerning some NTLM hashes not being crackable with certain hash cracking tools due to encoding gremlins
-v1.2.0-dev; 2025-09-13.2245
+v1.2.0-dev; 2025-09-14.1600
 	addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 	added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
 	added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
@@ -93,10 +94,14 @@ v1.2.0-dev; 2025-09-13.2245
 	added hashcat salted modes: -m 10, 20, 110, 120, 1410, 1420, 1310, 1320, 1710, 1720, 10810, 10820
 	added hashcat modes: -m 2600, 4500
 	cleaned up hashFunc aliases, algo typo, and hex mode
+	fixed ntlm encoding issue
+	added sanity check to not print blank / invalid hashes (part of ntlm fix, but applies to all hash modes)
+	converted checkForHex from string to byte
+	updated yescrypt defaults to match debian 12 (libxcrypt)
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.2.0-dev; 2025-09-13.2245\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.2.0-dev; 2025-09-14.1600\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -184,54 +189,78 @@ if your wordlist contains HEX strings that resemble alphabet soup, don't be surp
 the best way to fix HEX decoding issues is to correctly parse your wordlists so you don't end up with foobar HEX strings
 if you have suggestions on how to better handle HEX decoding errors, contact me on github
 */
-func checkForHex(line string) ([]byte, string, int) {
+func checkForHex(line []byte) ([]byte, []byte, int) {
 	// check if line is in $HEX[] format
-	if strings.HasPrefix(line, "$HEX[") {
+	const prefix = "$HEX["
+	if len(line) >= len(prefix) && bytes.HasPrefix(line, []byte(prefix)) {
 		// attempt to correct improperly formatted $HEX[] entries
 		// if it doesn't end with "]", add the missing bracket
 		var hexErrorDetected int
-		if !strings.HasSuffix(line, "]") {
-			line += "]"          // add missing trailing "]"
+		hasClose := bytes.HasSuffix(line, []byte("]"))
+		if !hasClose {
 			hexErrorDetected = 1 // mark as error since the format was corrected
 		}
 
 		// find first '[' and last ']'
-		startIdx := strings.Index(line, "[")
-		endIdx := strings.LastIndex(line, "]")
+		startIdx := bytes.IndexByte(line, '[')
+		endIdx := bytes.LastIndexByte(line, ']')
+		if endIdx == -1 {
+			endIdx = len(line) // pretend ']' is at end
+		}
 		hexContent := line[startIdx+1 : endIdx]
 
 		// decode hex content into bytes
-		decodedBytes, err := hex.DecodeString(hexContent)
-		// error handling
-		if err != nil {
-			hexErrorDetected = 1 // mark as error since there was an issue decoding
-
-			// remove blank spaces and invalid hex characters
-			cleanedHexContent := strings.Map(func(r rune) rune {
-				if strings.ContainsRune("0123456789abcdefABCDEF", r) {
-					return r
-				}
-				return -1 // remove invalid hex character
-			}, hexContent)
-
-			// if hex has an odd length, add a zero nibble to make it even
-			if len(cleanedHexContent)%2 != 0 {
-				cleanedHexContent = "0" + cleanedHexContent
+		var decodedBytes []byte
+		if n := len(hexContent); n > 0 && (n&1) == 0 {
+			decodedBytes = make([]byte, n/2)
+			if _, err := hex.Decode(decodedBytes, hexContent); err == nil {
+				disp := make([]byte, 5+len(hexContent)+1) // "$HEX[" + hex + "]"
+				copy(disp, prefix)
+				copy(disp[5:], hexContent)
+				disp[len(disp)-1] = ']'
+				return decodedBytes, disp, hexErrorDetected
 			}
+			hexErrorDetected = 1
+		} else {
+			hexErrorDetected = 1
+		}
 
-			decodedBytes, err = hex.DecodeString(cleanedHexContent)
-			if err != nil {
-				log.Printf("Error decoding $HEX[] content: %v", err)
-				// if decoding still fails, return original line as bytes
-				return []byte(line), line, hexErrorDetected
+		// error handling: remove invalid hex chars
+		clean := make([]byte, 0, len(hexContent))
+		for _, c := range hexContent {
+			lc := c | 0x20
+			if (c >= '0' && c <= '9') || (lc >= 'a' && lc <= 'f') {
+				clean = append(clean, c)
 			}
+		}
+		// if hex has an odd length, add a zero nibble to make it even
+		if len(clean)%2 != 0 {
+			clean = append([]byte{'0'}, clean...)
+		}
+
+		decodedBytes = make([]byte, len(clean)/2)
+		if len(clean) == 0 || func() bool {
+			_, err := hex.Decode(decodedBytes, clean)
+			return err != nil
+		}() {
+			log.Printf("Error decoding $HEX[] content")
+			// if decoding still fails, return original line as bytes
+			disp := make([]byte, 5+len(hexContent)+1)
+			copy(disp, prefix)
+			copy(disp[5:], hexContent)
+			disp[len(disp)-1] = ']'
+			return line, disp, hexErrorDetected
 		}
 
 		// return decoded bytes and formatted hex content
-		return decodedBytes, "$HEX[" + hexContent + "]", hexErrorDetected
+		disp := make([]byte, 5+len(hexContent)+1)
+		copy(disp, prefix)
+		copy(disp[5:], hexContent)
+		disp[len(disp)-1] = ']'
+		return decodedBytes, disp, hexErrorDetected
 	}
 	// return original line as bytes if not in $HEX[] format
-	return []byte(line), line, 0
+	return line, line, 0
 }
 
 // ITU-R M.1677-1 standard morse code mapping
@@ -742,6 +771,62 @@ func wpbcrypt(password []byte, cost int) string {
 	return wpPrefix + s[1:]
 }
 
+// yescrypt, using debian/libxcrypt defaults
+func yescryptHash(pass []byte) string {
+	// debian/libxcrypt defaults: N=4096, r=32, p=1, keyLen=32, 128-bit salt
+	const N = 4096
+	const r = 32
+	const p = 1
+	const keyLen = 32
+	const saltLen = 16
+
+	// salt
+	salt := make([]byte, saltLen)
+	if _, err := rand.Read(salt); err != nil {
+		fmt.Fprintln(os.Stderr, "yescrypt: salt error:", err)
+		return ""
+	}
+
+	// derive
+	key, err := yescrypt.Key(pass, salt, N, r, p, keyLen)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "yescrypt:", err)
+		return ""
+	}
+
+	// crypt-base64 encoder (./0-9A-Za-z)
+	encode64 := func(src []byte) string {
+		var dst []byte
+		var v uint32
+		bitsAcc := 0
+		for i := 0; i < len(src); i++ {
+			v |= uint32(src[i]) << bitsAcc
+			bitsAcc += 8
+			for bitsAcc >= 6 {
+				dst = append(dst, cryptBase64[v&0x3f])
+				v >>= 6
+				bitsAcc -= 6
+			}
+		}
+		if bitsAcc > 0 {
+			dst = append(dst, cryptBase64[v&0x3f])
+		}
+		return string(dst)
+	}
+
+	// params field:
+	// flags 'j' (YESCRYPT_DEFAULTS), then log2(N) and r, both encoded 1-based in crypt-base64
+	ln := bits.TrailingZeros(uint(N)) // N must be power of two
+	if 1<<ln != N || r <= 0 {
+		fmt.Fprintln(os.Stderr, "yescrypt: invalid N/r")
+		return ""
+	}
+	params := []byte{'j', cryptBase64[(ln-1)&0x3f], cryptBase64[(r-1)&0x3f]}
+
+	// assemble
+	return "$y$" + string(params) + "$" + encode64(salt) + "$" + encode64(key)
+}
+
 // supported hash algos / modes
 func hashBytes(hashFunc string, data []byte, cost int) string {
 	// random salt gen
@@ -852,37 +937,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		return string(buf)
 	// yescrypt
 	case "yescrypt":
-		salt := make([]byte, 8) // random 8-byte salt
-		if _, err := rand.Read(salt); err != nil {
-			fmt.Fprintln(os.Stderr, "Error generating salt:", err)
-			return ""
-		}
-		key, err := yescrypt.Key(data, salt, 32768, 8, 1, 32) // use default yescrypt parameters: N=32768, r=8, p=1, keyLen=32
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "yescrypt error:", err)
-			return ""
-		}
-		encode64 := func(src []byte) string {
-			var dst []byte
-			var value uint32
-			bits := 0
-			for i := 0; i < len(src); i++ {
-				value |= uint32(src[i]) << bits
-				bits += 8
-				for bits >= 6 {
-					dst = append(dst, cryptBase64[value&0x3f])
-					value >>= 6
-					bits -= 6
-				}
-			}
-			if bits > 0 {
-				dst = append(dst, cryptBase64[value&0x3f])
-			}
-			return string(dst)
-		}
-		encodedSalt := encode64(salt)
-		encodedKey := encode64(key)
-		return fmt.Sprintf("$y$jC5$%s$%s", encodedSalt, encodedKey)
+		return yescryptHash(data)
 	// argon2id
 	case "argon2id", "34000":
 		salt := make([]byte, 16) // random 16-byte salt
@@ -1102,23 +1157,24 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 	// md5crypt -m 500
 	case "md5crypt", "500":
 		return md5crypt(data)
-	// ntlm -m 1000
+	// ntlm -m 1000 (strict: skip invalid UTF-8 / UTF-16)
 	case "ntlm", "1000":
-		h := md4.New()
-		// convert byte slice to string assuming UTF-8, then encode as UTF-16LE
-		// this may not work as expected if plaintext contains non-ASCII/UTF-8 encoding
-		// due to encoding gremlins, not all NTLM hashes generated with hashgen are recoverable
-		// recovery test results on rockyou.txt (14,344,391 lines):
-		// mdxfind	recovered: 99.998%		missed: 218 	/ 14,344,391
-		// hashpwn	recovered: 99.993%		missed: 1,025	/ 14,344,391
-		// jtr		recovered: 99.961%		missed: 5,631	/ 14,344,391
-		// hashcat	recovered: 99.862%		missed: 19,824	/ 14,344,391
-		input := utf16.Encode([]rune(strings.ToValidUTF8(string(data), ""))) // convert byte slice to string, then to rune slice
-		if err := binary.Write(h, binary.LittleEndian, input); err != nil {
-			panic("Failed NTLM hashing")
+		var rs []rune
+		for i := 0; i < len(data); {
+			r, sz := utf8.DecodeRune(data[i:])
+			if r == utf8.RuneError && sz == 1 {
+				return ""
+			}
+			if r >= 0xD800 && r <= 0xDFFF {
+				return ""
+			}
+			rs = append(rs, r)
+			i += sz
 		}
-		hashBytes := h.Sum(nil)
-		return hex.EncodeToString(hashBytes)
+		u16 := utf16.Encode(rs)
+		h := md4.New()
+		_ = binary.Write(h, binary.LittleEndian, u16)
+		return hex.EncodeToString(h.Sum(nil))
 	// blake2b-256 (raw hex)
 	case "blake2b-256", "blake2b256":
 		h := blake2b.Sum256(data)
@@ -1193,18 +1249,22 @@ func processChunk(chunk []byte, count *int64, hexErrorCount *int64, hashFunc str
 	reader := bytes.NewReader(chunk)
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		line := scanner.Text()
-		decodedBytes, hexContent, hexErrCount := checkForHex(line)
+		lineBytes := scanner.Bytes()
+		decodedBytes, hexContent, hexErrCount := checkForHex(lineBytes)
 		hash := hashBytes(hashFunc, decodedBytes, cost)
+		if hash == "" {
+			continue
+		} // skip empty lines
 		writer.WriteString(hash)
 		if hashPlainOutput {
-			writer.WriteString(":" + hexContent)
+			_ = writer.WriteByte(':')
+			_, _ = writer.Write(hexContent)
 		}
-		writer.WriteString("\n")
+		_ = writer.WriteByte('\n')
 		atomic.AddInt64(count, 1)                          // line count
 		atomic.AddInt64(hexErrorCount, int64(hexErrCount)) // hex error count
 	}
-	writer.Flush()
+	_ = writer.Flush()
 }
 
 // process logic
