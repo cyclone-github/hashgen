@@ -1,4 +1,4 @@
-### v1.2.0-dev; 2025-09-14.1600
+### v1.2.0-dev; 2025-09-16.1630
 ```
 addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
@@ -6,11 +6,11 @@ added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
 add modes: mysql5 (300), phpass (400), md5crypt (500), sha256crypt (7400), sha512crypt (1800), Wordpress bcrypt-HMAC-SHA384 (wpbcrypt)
 added hashcat salted modes: -m 10, 20, 110, 120, 1410, 1420, 1310, 1320, 1710, 1720, 10810, 10820
 added hashcat modes: -m 2600, 4500
-cleaned up hashFunc aliases, algo typo, and hex mode
+cleaned up hashFunc aliases, algo typo, hex mode, hashBytes case switch
 fixed ntlm encoding issue
-added sanity check to not print blank / invalid hashes (part of ntlm fix, but applies to all hash modes)
+added sanity check to not print blank / invalid hash lines (part of ntlm fix, but applies to all hash modes)
 converted checkForHex from string to byte
-updated yescrypt defaults to match debian 12 (libxcrypt)
+updated yescrypt parameters to match debian 12 (libxcrypt) defaults
 ```
 ### v1.1.4; 2025-08-23
 ```
