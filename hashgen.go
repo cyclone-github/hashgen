@@ -9,6 +9,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/base32"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -51,14 +52,15 @@ full changelog
 https://github.com/cyclone-github/hashgen/blob/main/CHANGELOG.md
 
 latest changelog
-v1.2.0-dev; 2025-09-16.1630
+v1.2.0-dev; 2025-09-20.2300
 	addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 	added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
 	added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
-	add modes: mysql5 (300), phpass (400), md5crypt (500), sha256crypt (7400), sha512crypt (1800), Wordpress bcrypt-HMAC-SHA384 (wpbcrypt)
+	added modes: mysql5 (300), phpass (400), md5crypt (500), sha256crypt (7400), sha512crypt (1800), Wordpress bcrypt-HMAC-SHA384 (wpbcrypt)
 	added hashcat salted modes: -m 10, 20, 110, 120, 1410, 1420, 1310, 1320, 1710, 1720, 10810, 10820
 	added hashcat modes: -m 2600, 4500
-	cleaned up hashFunc aliases, algo typo, hex mode, hashBytes case switch
+	added encoding modes: base32encode, base32decode
+	cleaned up hashFunc aliases, algo typo, hex mode, hashBytes case switch, base64 and base58 decoders
 	fixed ntlm encoding issue
 	added sanity check to not print blank / invalid hash lines (part of ntlm fix, but applies to all hash modes)
 	converted checkForHex from string to byte
@@ -66,7 +68,7 @@ v1.2.0-dev; 2025-09-16.1630
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.2.0-dev; 2025-09-16.1630\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.2.0-dev; 2025-09-20.2300\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -82,6 +84,8 @@ func helpFunc() {
 		"If -t is not specified, defaults to max available CPU threads\n" +
 		"\nModes:\t\tHashcat Mode (notes):\n" +
 		"argon2id\t34000\n" +
+		"base32decode\n" +
+		"base32encode\n" +
 		"base58decode\n" +
 		"base58encode\n" +
 		"base64decode\n" +
@@ -829,13 +833,14 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 
 	// base64 decode
 	case "base64decode", "base64d":
-		decodedBytes := make([]byte, base64.StdEncoding.DecodedLen(len(data)))
-		n, err := base64.StdEncoding.Decode(decodedBytes, data)
+		trimmedData := bytes.TrimSpace(data)
+		decodedBytes := make([]byte, base64.StdEncoding.DecodedLen(len(trimmedData)))
+		n, err := base64.StdEncoding.Decode(decodedBytes, trimmedData)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Invalid Base64 string")
 			return ""
 		}
-		return string(decodedBytes[:n]) // convert the decoded bytes to a string
+		return string(decodedBytes[:n])
 
 	// base58 encode
 	case "base58encode", "base58e":
@@ -844,12 +849,28 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 	// base58 decode
 	case "base58decode", "base58d":
 		trimmedData := bytes.TrimSpace(data)
-		decodedBytes, err := base58.StdEncoding.DecodeString(string(trimmedData))
+		decodedBytes := make([]byte, len(trimmedData))
+		n, err := base58.StdEncoding.Decode(decodedBytes, trimmedData)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Invalid Base58 string:", err)
 			return ""
 		}
-		return string(decodedBytes)
+		return string(decodedBytes[:n])
+
+	// base32 encode
+	case "base32encode", "base32e":
+		return base32.StdEncoding.EncodeToString(data)
+
+	// base32 decode
+	case "base32decode", "base32d":
+		trimmedData := bytes.TrimSpace(data)
+		decodedBytes := make([]byte, base32.StdEncoding.DecodedLen(len(trimmedData)))
+		n, err := base32.StdEncoding.Decode(decodedBytes, trimmedData)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Invalid Base32 string")
+			return ""
+		}
+		return string(decodedBytes[:n])
 
 	// morsecode
 	case "morsecode", "morse":

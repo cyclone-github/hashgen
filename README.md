@@ -25,7 +25,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 
 ### Features:
 - Maintains original input order [PR 10](https://github.com/cyclone-github/hashgen/pull/10)
-- Supports 58+ modes/functions (see list below)
+- Supports 60+ modes/functions (see list below)
 - Encode / decode base64 & base58
 - Hex / dehex wordlists
 - Supports ASCII, UTF-8 and $HEX[] input
@@ -64,6 +64,8 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | base64decode | |
 | base58encode | |
 | base58decode | |
+| base32encode | |
+| base32decode | |
 | morsecode | (ITU-R M.1677-1) |
 | | |
 | **`Checksums`** | |
