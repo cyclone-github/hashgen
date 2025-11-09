@@ -52,7 +52,7 @@ full changelog
 https://github.com/cyclone-github/hashgen/blob/main/CHANGELOG.md
 
 latest changelog
-v1.2.0-dev; 2025-09-20.2300
+v1.2.0; 2025-11-08
 	addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 	added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
 	added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
@@ -68,7 +68,7 @@ v1.2.0-dev; 2025-09-20.2300
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.2.0-dev; 2025-09-20.2300\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.2.0; 2025-11-08\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function

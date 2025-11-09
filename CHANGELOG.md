@@ -1,4 +1,4 @@
-### v1.2.0-dev; 2025-09-20.2300
+### v1.2.0; 2025-11-08
 ```
 addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
