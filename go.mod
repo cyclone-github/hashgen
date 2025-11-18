@@ -1,4 +1,4 @@
-module hashgen
+module github.com/cyclone-github/hashgen
 
 go 1.25.2
 

@@ -142,8 +142,16 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 - In addition to hashgen (go), I have also written hashgen in python, php, C, and Rust, although Rust and C need a lot of work to unlock their full performance potential. If you speak C or Rust, I'd be curious to see how fast you can push hashgen!
   - https://github.com/cyclone-github/hashgen-testing
 
-### Compile hashgen from source:
-- If you want the latest features, compiling from source is the best option since the release version may run several revisions behind the source code.
+### Install latest release:
+```
+go install github.com/cyclone-github/hashgen@latest
+```
+### Install from latest source code (bleeding edge):
+```
+go install github.com/cyclone-github/hashgen@main
+```
+
+### Compile from source:
 - This assumes you have Go and Git installed
   - `git clone https://github.com/cyclone-github/hashgen.git`  # clone repo
   - `cd hashgen`                                               # enter project directory
