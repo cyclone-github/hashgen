@@ -67,6 +67,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | base32encode | |
 | base32decode | |
 | morsecode | (ITU-R M.1677-1) |
+| morsedecode | |
 | | |
 | **`Checksums`** | |
 | crc32 | |

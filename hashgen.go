@@ -65,10 +65,12 @@ v1.2.0; 2025-11-08
 	added sanity check to not print blank / invalid hash lines (part of ntlm fix, but applies to all hash modes)
 	converted checkForHex from string to byte
 	updated yescrypt parameters to match debian 12 (libxcrypt) defaults
+v1.2.1; 2025-12-08
+	added mode: morsedecode (Morse Code decoder)
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.2.0; 2025-11-08\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.2.1; 2025-12-08\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -114,6 +116,7 @@ func helpFunc() {
 		"md5crypt\t500 (Linux shadow $1$)\n" +
 		"mysql4/mysql5\t300\n" +
 		"morsecode\t(ITU-R M.1677-1)\n" +
+		"morsedecode\n" +
 		"ntlm\t\t1000 (Windows NT)\n" +
 		"phpass\t\t400\n" +
 		"ripemd-160\t6000\n" +
@@ -278,6 +281,66 @@ func encodeToMorseBytes(input []byte) []byte {
 	}
 	return result
 }
+
+/*
+decode Morse Code to bytes
+rules:
+- single space between codes -> next character
+- 3 or more spaces           -> word separator (space - matches -m morsecode encoder style)
+*/
+func decodeMorseBytes(input []byte) []byte {
+	var out bytes.Buffer
+	var token bytes.Buffer
+	spaces := 0
+
+	flushToken := func() {
+		if token.Len() == 0 {
+			return
+		}
+		code := token.String()
+		if ch, ok := morseDecodeMap[code]; ok {
+			out.WriteByte(ch)
+		}
+		token.Reset()
+	}
+
+	for _, b := range input {
+		if b == ' ' || b == '\t' {
+			spaces++
+			continue
+		}
+
+		// non-space
+		if spaces > 0 {
+			flushToken()
+			if spaces >= 3 {
+				out.WriteByte(' ') // word separator
+			}
+			spaces = 0
+		}
+		token.WriteByte(b)
+	}
+
+	flushToken()
+	return out.Bytes()
+}
+
+// reverse lookup for Morse Code -> byte (prefer uppercase letters)
+var morseDecodeMap = func() map[string]byte {
+	m := make(map[string]byte)
+	for ch, code := range morseCodeMap {
+		if code == " " {
+			continue
+		}
+		// store as uppercase
+		up := ch
+		if up >= 'a' && up <= 'z' {
+			up -= 32
+		}
+		m[code] = up
+	}
+	return m
+}()
 
 // phpassMD5 -m 400
 func phpassMD5(password []byte, mode string, countLog2 int, saltRaw []byte) string {
@@ -875,6 +938,10 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 	// morsecode
 	case "morsecode", "morse":
 		return string(encodeToMorseBytes(data))
+
+	// morsecode decode
+	case "morsedecode", "morsed":
+		return string(decodeMorseBytes(data))
 
 	// Checksums
 

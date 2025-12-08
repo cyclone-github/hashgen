@@ -1,3 +1,7 @@
+### v1.2.1; 2025-12-08
+```
+added mode: morsedecode (Morse Code decoder)
+```
 ### v1.2.0; 2025-11-08
 ```
 addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8

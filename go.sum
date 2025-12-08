@@ -4,7 +4,7 @@ github.com/ebfe/keccak v0.0.0-20150115210727-5cc570678d1b h1:BMyjwV6Fal/Ffphi4dJ
 github.com/ebfe/keccak v0.0.0-20150115210727-5cc570678d1b/go.mod h1:fnviDXB7GJWiSUI9thIXmk9QKM8Rhj1JV/LcMRzkiVA=
 github.com/openwall/yescrypt-go v1.0.0 h1:jsGk48zkFvtUjGVOhYPGh+CS595JmTRcKnpggK2AON4=
 github.com/openwall/yescrypt-go v1.0.0/go.mod h1:e6CWtFizUEOUttaOjeVMiv1lJaJie3mfOtLJ9CCD6sA=
-golang.org/x/crypto v0.45.0 h1:jMBrvKuj23MTlT0bQEOBcAE0mjg8mK9RXFhRH6nyF3Q=
-golang.org/x/crypto v0.45.0/go.mod h1:XTGrrkGJve7CYK7J8PEww4aY7gM3qMCElcJQ8n8JdX4=
-golang.org/x/sys v0.38.0 h1:3yZWxaJjBmCWXqhN1qh02AkOnCQ1poK6oF+a7xWL6Gc=
-golang.org/x/sys v0.38.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
+golang.org/x/crypto v0.46.0 h1:cKRW/pmt1pKAfetfu+RCEvjvZkA9RimPbh7bhFjGVBU=
+golang.org/x/crypto v0.46.0/go.mod h1:Evb/oLKmMraqjZ2iQTwDwvCtJkczlDuTmdJXoZVzqU0=
+golang.org/x/sys v0.39.0 h1:CvCKL8MeisomCi6qNZ+wbb0DN9E5AATixKsvNtMoMFk=
+golang.org/x/sys v0.39.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
