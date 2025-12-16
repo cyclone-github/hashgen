@@ -1,6 +1,6 @@
 module github.com/cyclone-github/hashgen
 
-go 1.25.2
+go 1.25.5
 
 require (
 	github.com/cyclone-github/base58 v1.0.1
