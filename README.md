@@ -9,15 +9,13 @@
 # hashgen - Cyclone's hash generator
 ```
 $ hashgen -m md5 -w rockyou.txt -b
-2025/08/23 19:18:27 Starting...
-2025/08/23 19:18:27 Processing file: rockyou.txt
-2025/08/23 19:18:27 Hash function: md5
-2025/08/23 19:18:27 CPU Threads: 16
-2025/08/23 19:18:28 Finished processing 14344391 lines in 0.465 sec (30.839 M lines/sec)
+2026/01/23 11:44:20 Starting...
+2026/01/23 11:44:20 Processing file: rockyou.txt
+2026/01/23 11:44:20 Hash function: md5
+2026/01/23 11:44:20 CPU Threads: 16
+2026/01/23 11:44:20 Finished processing 14344391 lines in 0.460 sec (31.215 M lines/sec)
 ```
-**As of the this writing, hashgen (go) has a 2,519% faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** While this is extremely fast, these hashrates can be beat by improved code optimization and/or coding in faster programming languages (I'm looking at you C, Rust and Zig).
-
-Since version `v2023-10-30.1600`, hashgen has a top recorded hasharate of 30,228,048 md5/sec on the test rig's Ryzen 7 3700X CPU! Much faster hashrates have been seen on higher end CPU's.
+**As of the this writing, hashgen (go) has a 2,519% faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** Since version `v2023-10-30.1600`, hashgen has a top recorded hasharate of 30,228,048 md5/sec on the test rig's Ryzen 7 3700X CPU! Much faster hashrates have been seen on higher end CPU's.
 
 Hashgen is a CLI hash generator written in Go and can be cross compiled for Linux, Raspberry Pi, Windows & Mac, although testing and compiling is mainly done on debian 12 linux.
 
@@ -77,6 +75,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | **`MDx`** | |
 | md4 | 900 |
 | md5 | 0 |
+| halfmd5 | 5100 |
 | md5passsalt | 10 |
 | md5saltpass | 20 |
 | md5md5 | 2600 |

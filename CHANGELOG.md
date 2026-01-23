@@ -1,3 +1,8 @@
+### v1.2.2; 2026-01-23
+```
+added mode: halfmd5 (hashcat -m 5100)
+updated -help
+```
 ### v1.2.1; 2025-12-08
 ```
 added mode: morsedecode (Morse Code decoder)

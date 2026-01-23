@@ -67,10 +67,13 @@ v1.2.0; 2025-11-08
 	updated yescrypt parameters to match debian 12 (libxcrypt) defaults
 v1.2.1; 2025-12-08
 	added mode: morsedecode (Morse Code decoder)
+v1.2.2; 2026-01-23
+	added mode: halfmd5 (hashcat -m 5100)
+	updated -help
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.2.1; 2025-12-08\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.2.2; 2026-01-23\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -80,7 +83,7 @@ func helpFunc() {
 		"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n" +
 		"./hashgen -m bcrypt -cost 8 -w wordlist.txt\n" +
 		"cat wordlist | ./hashgen -m md5 -hashplain\n" +
-		"\nAll Supported Options:\n-m {mode}\n-w {wordlist input}\n-t {cpu threads}\n-o {wordlist output}\n-b {benchmark mode}\n-cost {bcrypt, default=10}\n-hashplain {generates hash:plain pairs}\n" +
+		"\nAll Supported Options:\n-m {mode}\n-w {wordlist input}\n-t {cpu threads}\n-o {wordlist output}\n-b {benchmark mode}\n-cost {bcrypt, default=10}\n-hashplain {generates hash:plain pairs}\n-help {displays help}\n-version {displays version info}\n" +
 		"\nIf -w is not specified, defaults to stdin\n" +
 		"If -o is not specified, defaults to stdout\n" +
 		"If -t is not specified, defaults to max available CPU threads\n" +
@@ -104,12 +107,9 @@ func helpFunc() {
 		"crc64\n" +
 		"hex\t\t(encode to $HEX[])\n" +
 		"dehex/plaintext\t99999\t(decode $HEX[])\n" +
-		"keccak-224\t17700\n" +
-		"keccak-256\t17800\n" +
-		"keccak-384\t17900\n" +
-		"keccak-512\t18000\n" +
 		"md4\t\t900\n" +
 		"md5\t\t0\n" +
+		"halfmd5\t\t5100\n" +
 		"md5passsalt\t10\n" +
 		"md5saltpass\t20\n" +
 		"md5md5\t\t2600\n" +
@@ -144,6 +144,10 @@ func helpFunc() {
 		"sha3-256\t17400\n" +
 		"sha3-384\t17500\n" +
 		"sha3-512\t17600\n" +
+		"keccak-224\t17700\n" +
+		"keccak-256\t17800\n" +
+		"keccak-384\t17900\n" +
+		"keccak-512\t18000\n" +
 		"wpbcrypt\t(WordPress bcrypt-HMAC-SHA384)\n" +
 		"yescrypt\t(Linux shadow $y$)\n"
 	fmt.Fprintln(os.Stderr, str)
@@ -981,6 +985,11 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 	case "md5", "0":
 		h := md5.Sum(data)
 		return hex.EncodeToString(h[:])
+
+	// halfmd5 -m 5100
+	case "halfmd5", "5100":
+		h := md5.Sum(data)
+		return hex.EncodeToString(h[:8])
 
 	// -m 10 md5(pass.salt), -m 20 md5(salt.pass)
 	case "10", "md5passsalt", "20", "md5saltpass":
