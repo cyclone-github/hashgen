@@ -1,3 +1,14 @@
+### v1.3.0; 2026-04-10
+```
+added HMAC modes: -m 50, 60, 150, 160, 1450, 1460, 1750, 1760, 6050, 6060
+added PBKDF2 modes: -m 10900, 11900, 12000, 12100
+added scrypt mode: -m 8900
+added BLAKE2 modes: -m 600, 610, 620, 31000, 34800, 34810, 34820, 33300
+added hashcat UTF-16LE modes: -m 30, 40, 70, 130, 140, 170, 1430, 1440, 1470, 1730, 1740, 1770
+optimized salt RNG for fewer syscalls on salted hash modes
+added sanity check on invalid -m nth before opening stdin/wordlist
+compiled with Go v1.26.2
+```
 ### v1.2.2; 2026-01-23
 ```
 added mode: halfmd5 (hashcat -m 5100)

@@ -36,7 +36,9 @@ import (
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/blake2s"
 	"golang.org/x/crypto/md4"
+	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/crypto/scrypt"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -52,28 +54,19 @@ full changelog
 https://github.com/cyclone-github/hashgen/blob/main/CHANGELOG.md
 
 latest changelog
-v1.2.0; 2025-11-08
-	addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
-	added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
-	added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
-	added modes: mysql5 (300), phpass (400), md5crypt (500), sha256crypt (7400), sha512crypt (1800), Wordpress bcrypt-HMAC-SHA384 (wpbcrypt)
-	added hashcat salted modes: -m 10, 20, 110, 120, 1410, 1420, 1310, 1320, 1710, 1720, 10810, 10820
-	added hashcat modes: -m 2600, 4500
-	added encoding modes: base32encode, base32decode
-	cleaned up hashFunc aliases, algo typo, hex mode, hashBytes case switch, base64 and base58 decoders
-	fixed ntlm encoding issue
-	added sanity check to not print blank / invalid hash lines (part of ntlm fix, but applies to all hash modes)
-	converted checkForHex from string to byte
-	updated yescrypt parameters to match debian 12 (libxcrypt) defaults
-v1.2.1; 2025-12-08
-	added mode: morsedecode (Morse Code decoder)
-v1.2.2; 2026-01-23
-	added mode: halfmd5 (hashcat -m 5100)
-	updated -help
+v1.3.0; 2026-04-11
+	added scrypt mode: -m 8900
+	added PBKDF2 modes: -m 10900, 11900, 12000, 12100
+	added BLAKE2 modes: -m 600, 610, 620, 31000, 34800, 34810, 34820, 33300
+	added HMAC modes: -m 50, 60, 150, 160, 1450, 1460, 1750, 1760, 6050, 6060
+	added UTF-16LE modes: -m 30, 40, 70, 130, 140, 170, 1430, 1440, 1470, 1730, 1740, 1770
+	optimized salt RNG for fewer syscalls on salted hash modes
+	added sanity check on invalid -m nth before opening stdin/wordlist
+	compiled with Go v1.26.2
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.2.2; 2026-01-23\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.3.0; 2026-04-11\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -82,8 +75,9 @@ func helpFunc() {
 	str := "\nExample Usage:\n" +
 		"\n./hashgen -m md5 -w wordlist.txt -o output.txt\n" +
 		"./hashgen -m bcrypt -cost 8 -w wordlist.txt\n" +
+		"./hashgen -m 10900 -i 2000 -w wordlist.txt\n" +
 		"cat wordlist | ./hashgen -m md5 -hashplain\n" +
-		"\nAll Supported Options:\n-m {mode}\n-w {wordlist input}\n-t {cpu threads}\n-o {wordlist output}\n-b {benchmark mode}\n-cost {bcrypt, default=10}\n-hashplain {generates hash:plain pairs}\n-help {displays help}\n-version {displays version info}\n" +
+		"\nAll Supported Options:\n-m {mode}\n-w {wordlist input}\n-t {cpu threads}\n-o {wordlist output}\n-b {benchmark mode}\n-cost {bcrypt / wpbcrypt only; default 10}\n-i {PBKDF2 iterations for 10900-12100; 0 means 1000; invalid with other modes}\n-hashplain {hash:plain output}\n-help {this text}\n-version {version string}\n" +
 		"\nIf -w is not specified, defaults to stdin\n" +
 		"If -o is not specified, defaults to stdout\n" +
 		"If -t is not specified, defaults to max available CPU threads\n" +
@@ -97,26 +91,35 @@ func helpFunc() {
 		"base64encode\n" +
 		"bcrypt\t\t3200\n" +
 		"blake2s-256\n" +
-		"31000\t\t(hashcat compatible blake2s-256)\n" +
+		"31000\t\t(hashcat compatible BLAKE2s-256)\n" +
+		"33300\t\t(hashcat compatible HMAC-BLAKE2s key = $pass)\n" +
 		"blake2b-256\n" +
+		"34800\t\t(hashcat compatible BLAKE2b-256)\n" +
 		"blake2b-384\n" +
 		"blake2b-512\n" +
-		"600\t\t(hashcat compatible blake2b-512)\n" +
+		"600\t\t(hashcat compatible BLAKE2b-512)\n" +
+		"610\t\t(hashcat compatible BLAKE2b-512 pass.salt)\n" +
+		"620\t\t(hashcat compatible BLAKE2b-512 salt.pass)\n" +
+		"34810\t\t(hashcat compatible BLAKE2b-256 pass.salt)\n" +
+		"34820\t\t(hashcat compatible BLAKE2b-256 salt.pass)\n" +
 		"crc32\n" +
 		"11500\t\t(hashcat compatible CRC32)\n" +
 		"crc64\n" +
 		"hex\t\t(encode to $HEX[])\n" +
-		"dehex/plaintext\t99999\t(decode $HEX[])\n" +
+		"dehex/plaintext\t99999 (decode $HEX[])\n" +
 		"md4\t\t900\n" +
 		"md5\t\t0\n" +
 		"halfmd5\t\t5100\n" +
 		"md5passsalt\t10\n" +
 		"md5saltpass\t20\n" +
+		"30\t\t(hashcat compatible md5 utf16le($pass).$salt)\n" +
+		"40\t\t(hashcat compatible md5 $salt.utf16le($pass))\n" +
+		"70\t\t(hashcat compatible md5 utf16le($pass))\n" +
 		"md5md5\t\t2600\n" +
 		"md5crypt\t500 (Linux shadow $1$)\n" +
 		"mysql4/mysql5\t300\n" +
 		"morsecode\t(ITU-R M.1677-1)\n" +
-		"morsedecode\n" +
+		"morsedecode\t(ITU-R M.1677-1)\n" +
 		"ntlm\t\t1000 (Windows NT)\n" +
 		"phpass\t\t400\n" +
 		"ripemd-160\t6000\n" +
@@ -124,12 +127,18 @@ func helpFunc() {
 		"sha1sha1\t4500\n" +
 		"sha1passsalt\t110\n" +
 		"sha1saltpass\t120\n" +
+		"130\t\t(hashcat compatible sha1 utf16le($pass).$salt)\n" +
+		"140\t\t(hashcat compatible sha1 $salt.utf16le($pass))\n" +
+		"170\t\t(hashcat compatible sha1 utf16le($pass))\n" +
 		"sha224\t\t1300\n" +
 		"sha224passsalt\t1310\n" +
 		"sha224saltpass\t1320\n" +
 		"sha256\t\t1400\n" +
 		"sha256passsalt\t1410\n" +
 		"sha256saltpass\t1420\n" +
+		"1430\t\t(hashcat compatible sha256 utf16le($pass).$salt)\n" +
+		"1440\t\t(hashcat compatible sha256 $salt.utf16le($pass))\n" +
+		"1470\t\t(hashcat compatible sha256 utf16le($pass))\n" +
 		"sha256crypt\t7400 (Linux shadow $5$)\n" +
 		"sha384\t\t10800\n" +
 		"sha384passsalt\t10810\n" +
@@ -137,7 +146,24 @@ func helpFunc() {
 		"sha512\t\t1700\n" +
 		"sha512passsalt\t1710\n" +
 		"sha512saltpass\t1720\n" +
+		"1730\t\t(hashcat compatible sha512 utf16le($pass).$salt)\n" +
+		"1740\t\t(hashcat compatible sha512 $salt.utf16le($pass))\n" +
+		"1770\t\t(hashcat compatible sha512 utf16le($pass))\n" +
 		"sha512crypt\t1800 (Linux shadow $6$)\n" +
+		"50\t\t(hashcat compatible HMAC-MD5 key = $pass)\n" +
+		"60\t\t(hashcat compatible HMAC-MD5 key = $salt)\n" +
+		"150\t\t(hashcat compatible HMAC-SHA1 key = $pass)\n" +
+		"160\t\t(hashcat compatible HMAC-SHA1 key = $salt)\n" +
+		"1450\t\t(hashcat compatible HMAC-SHA256 key = $pass)\n" +
+		"1460\t\t(hashcat compatible HMAC-SHA256 key = $salt)\n" +
+		"1750\t\t(hashcat compatible HMAC-SHA512 key = $pass)\n" +
+		"1760\t\t(hashcat compatible HMAC-SHA512 key = $salt)\n" +
+		"6050\t\t(hashcat compatible HMAC-RIPEMD160 key = $pass)\n" +
+		"6060\t\t(hashcat compatible HMAC-RIPEMD160 key = $salt)\n" +
+		"10900\t\t(hashcat compatible PBKDF2-HMAC-SHA256)\n" +
+		"11900\t\t(hashcat compatible PBKDF2-HMAC-MD5)\n" +
+		"12000\t\t(hashcat compatible PBKDF2-HMAC-SHA1)\n" +
+		"12100\t\t(hashcat compatible PBKDF2-HMAC-SHA512)\n" +
 		"sha512-224\n" +
 		"sha512-256\n" +
 		"sha3-224\t17300\n" +
@@ -148,6 +174,7 @@ func helpFunc() {
 		"keccak-256\t17800\n" +
 		"keccak-384\t17900\n" +
 		"keccak-512\t18000\n" +
+		"scrypt\t\t8900\n" +
 		"wpbcrypt\t(WordPress bcrypt-HMAC-SHA384)\n" +
 		"yescrypt\t(Linux shadow $y$)\n"
 	fmt.Fprintln(os.Stderr, str)
@@ -157,6 +184,127 @@ func helpFunc() {
 var (
 	cryptBase64 = []byte("./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 )
+
+// pbkdf2 iteration count from -i for 10900-12100, default 1000
+var pbkdf2IterCount = 1000
+
+// set during -m probe so heavy modes return without hashing
+var modeProbe bool
+
+func isPBKDF2Mode(m string) bool {
+	switch m {
+	case "10900", "pbkdf2-sha256", "11900", "pbkdf2-md5", "12000", "pbkdf2-sha1", "12100", "pbkdf2-sha512":
+		return true
+	default:
+		return false
+	}
+}
+
+// pooled scratch to batch crypto/rand reads
+const cryptoRandChunk = 256
+
+type cryptoRandBuf struct {
+	b   [cryptoRandChunk]byte
+	off int
+}
+
+// pool buffer starts drained so first read is real random not zeros
+var cryptoRandPool = sync.Pool{
+	New: func() any { return &cryptoRandBuf{off: cryptoRandChunk} },
+}
+
+// fill p from pooled crypto/rand, one buffer per call
+func readRand(p []byte) bool {
+	if len(p) == 0 {
+		return true
+	}
+	buf := cryptoRandPool.Get().(*cryptoRandBuf)
+	defer cryptoRandPool.Put(buf)
+	for len(p) > 0 {
+		if buf.off >= len(buf.b) {
+			if _, err := rand.Read(buf.b[:]); err != nil {
+				fmt.Fprintln(os.Stderr, "random read error:", err)
+				return false
+			}
+			buf.off = 0
+		}
+		n := copy(p, buf.b[buf.off:])
+		buf.off += n
+		p = p[n:]
+	}
+	return true
+}
+
+// 8 random bytes as 16 hex chars into dst
+func fillSaltHex8(dst []byte) bool {
+	if len(dst) < 16 {
+		return false
+	}
+	var raw [8]byte
+	if !readRand(raw[:]) {
+		return false
+	}
+	hex.Encode(dst, raw[:])
+	return true
+}
+
+// utf-16le from utf-8 password, same validity rules as ntlm
+func utf16LEPassStrict(data []byte) ([]byte, bool) {
+	var rs []rune
+	for i := 0; i < len(data); {
+		r, sz := utf8.DecodeRune(data[i:])
+		if r == utf8.RuneError && sz == 1 {
+			return nil, false
+		}
+		if r >= 0xD800 && r <= 0xDFFF {
+			return nil, false
+		}
+		rs = append(rs, r)
+		i += sz
+	}
+	u16 := utf16.Encode(rs)
+	out := make([]byte, 2*len(u16))
+	for i, c := range u16 {
+		out[2*i] = byte(c)
+		out[2*i+1] = byte(c >> 8)
+	}
+	return out, true
+}
+
+// hashcat hmac line as hex(digest):salt
+func hexMACLineDigest(digest []byte, salt []byte) string {
+	n := hex.EncodedLen(len(digest))
+	out := make([]byte, n+1+len(salt))
+	hex.Encode(out[:n], digest)
+	out[n] = ':'
+	copy(out[n+1:], salt)
+	return string(out)
+}
+
+// hashcat blake2s_hmac for mode 33300
+func blake2sHMACHashcat(key, msg []byte) []byte {
+	const block = 64
+	var kpad [block]byte
+	if len(key) > block {
+		s := blake2s.Sum256(key)
+		copy(kpad[:], s[:])
+	} else {
+		copy(kpad[:], key)
+	}
+	var ipadBlock, opadBlock [block]byte
+	for i := 0; i < block; i++ {
+		ipadBlock[i] = kpad[i] ^ 0x36
+		opadBlock[i] = kpad[i] ^ 0x5c
+	}
+	ih, _ := blake2s.New256(nil)
+	_, _ = ih.Write(ipadBlock[:])
+	_, _ = ih.Write(msg)
+	inner := ih.Sum(nil)
+	oh, _ := blake2s.New256(nil)
+	_, _ = oh.Write(opadBlock[:])
+	_, _ = oh.Write(inner)
+	return oh.Sum(nil)
+}
 
 // dehex wordlist line
 /* note:
@@ -357,8 +505,7 @@ func phpassMD5(password []byte, mode string, countLog2 int, saltRaw []byte) stri
 	}
 	if saltRaw == nil || len(saltRaw) < 6 {
 		saltRaw = make([]byte, 6)
-		if _, err := rand.Read(saltRaw); err != nil {
-			fmt.Fprintln(os.Stderr, "phpass salt error:", err)
+		if !readRand(saltRaw) {
 			return ""
 		}
 	} else if len(saltRaw) > 6 {
@@ -422,7 +569,7 @@ func md5crypt(password []byte) string {
 	const magic = "$1$"
 	salt := make([]byte, 8)
 	rb := make([]byte, 8)
-	if _, err := rand.Read(rb); err != nil {
+	if !readRand(rb) {
 		for i := 0; i < 8; i++ {
 			salt[i] = cryptBase64[(i*37+13)&0x3f]
 		}
@@ -537,7 +684,7 @@ func sha256crypt(password []byte) string {
 	rounds := 5000
 	salt := make([]byte, 16)
 	rb := make([]byte, 16)
-	if _, err := rand.Read(rb); err != nil {
+	if !readRand(rb) {
 		for i := 0; i < 16; i++ {
 			salt[i] = cryptBase64[(i*37+13)&0x3f]
 		}
@@ -654,7 +801,7 @@ func sha512crypt(password []byte) string {
 	salt := make([]byte, 16)
 	{
 		var rb [16]byte
-		if _, err := rand.Read(rb[:]); err != nil {
+		if !readRand(rb[:]) {
 			return ""
 		}
 		for i := 0; i < 16; i++ {
@@ -818,8 +965,8 @@ func yescryptHash(pass []byte) string {
 
 	// salt
 	salt := make([]byte, saltLen)
-	if _, err := rand.Read(salt); err != nil {
-		fmt.Fprintln(os.Stderr, "yescrypt: salt error:", err)
+	if !readRand(salt) {
+		fmt.Fprintln(os.Stderr, "yescrypt: salt error")
 		return ""
 	}
 
@@ -864,27 +1011,25 @@ func yescryptHash(pass []byte) string {
 }
 
 // supported hash algos / modes
-func hashBytes(hashFunc string, data []byte, cost int) string {
-	// random salt gen
-	// TODO move to helper func and optmize
-	makeSaltHex := func() ([]byte, bool) {
-		saltRaw := make([]byte, 8)
-		if _, err := rand.Read(saltRaw); err != nil {
-			fmt.Fprintln(os.Stderr, "salt generation error:", err)
-			return nil, false
+func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
+	if modeProbe {
+		switch hashFunc {
+		case "argon2id", "34000", "yescrypt",
+			"8900", "scrypt",
+			"10900", "pbkdf2-sha256", "11900", "pbkdf2-md5", "12000", "pbkdf2-sha1", "12100", "pbkdf2-sha512",
+			"bcrypt", "3200", "wpbcrypt",
+			"md5crypt", "500", "sha256crypt", "7400", "sha512crypt", "1800",
+			"phpass", "phpbb3", "400":
+			return "", true
 		}
-		saltHex := make([]byte, hex.EncodedLen(len(saltRaw)))
-		hex.Encode(saltHex, saltRaw)
-		return saltHex, true
 	}
-
 	switch hashFunc {
 
 	// Plaintext & Encoding
 	// plaintext, dehex, -m 99999
 	case "plaintext", "dehex", "99999":
 		// passthrough & run checkForHex
-		return string(data)
+		return string(data), true
 
 	// $HEX[]
 	case "hex":
@@ -892,11 +1037,11 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		copy(buf, "$HEX[")
 		hex.Encode(buf[5:], data)
 		buf[len(buf)-1] = ']'
-		return string(buf)
+		return string(buf), true
 
 	// base64 encode
 	case "base64encode", "base64e":
-		return base64.StdEncoding.EncodeToString(data)
+		return base64.StdEncoding.EncodeToString(data), true
 
 	// base64 decode
 	case "base64decode", "base64d":
@@ -905,13 +1050,13 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		n, err := base64.StdEncoding.Decode(decodedBytes, trimmedData)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Invalid Base64 string")
-			return ""
+			return "", true
 		}
-		return string(decodedBytes[:n])
+		return string(decodedBytes[:n]), true
 
 	// base58 encode
 	case "base58encode", "base58e":
-		return base58.StdEncoding.EncodeToString(data)
+		return base58.StdEncoding.EncodeToString(data), true
 
 	// base58 decode
 	case "base58decode", "base58d":
@@ -920,13 +1065,13 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		n, err := base58.StdEncoding.Decode(decodedBytes, trimmedData)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Invalid Base58 string:", err)
-			return ""
+			return "", true
 		}
-		return string(decodedBytes[:n])
+		return string(decodedBytes[:n]), true
 
 	// base32 encode
 	case "base32encode", "base32e":
-		return base32.StdEncoding.EncodeToString(data)
+		return base32.StdEncoding.EncodeToString(data), true
 
 	// base32 decode
 	case "base32decode", "base32d":
@@ -935,17 +1080,17 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		n, err := base32.StdEncoding.Decode(decodedBytes, trimmedData)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Invalid Base32 string")
-			return ""
+			return "", true
 		}
-		return string(decodedBytes[:n])
+		return string(decodedBytes[:n]), true
 
 	// morsecode
 	case "morsecode", "morse":
-		return string(encodeToMorseBytes(data))
+		return string(encodeToMorseBytes(data)), true
 
 	// morsecode decode
 	case "morsedecode", "morsed":
-		return string(decodeMorseBytes(data))
+		return string(decodeMorseBytes(data)), true
 
 	// Checksums
 
@@ -954,7 +1099,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		h := crc32.ChecksumIEEE(data)
 		b := make([]byte, 4)
 		binary.BigEndian.PutUint32(b, h)
-		return hex.EncodeToString(b)
+		return hex.EncodeToString(b), true
 
 	// crc32 -m 11500
 	case "11500": // hashcat compatible crc32 mode
@@ -963,7 +1108,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		b := make([]byte, 4)
 		binary.BigEndian.PutUint32(b, h)
 		hashString := hex.EncodeToString(b)
-		return hashString + hcCRCPad
+		return hashString + hcCRCPad, true
 
 	// crc64
 	case "crc64":
@@ -971,7 +1116,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		h := crc64.Checksum(data, table)
 		b := make([]byte, 8)
 		binary.BigEndian.PutUint64(b, h)
-		return hex.EncodeToString(b)
+		return hex.EncodeToString(b), true
 
 	// MDx
 
@@ -979,24 +1124,25 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 	case "md4", "900":
 		h := md4.New()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// md5 -m 0
 	case "md5", "0":
 		h := md5.Sum(data)
-		return hex.EncodeToString(h[:])
+		return hex.EncodeToString(h[:]), true
 
 	// halfmd5 -m 5100
 	case "halfmd5", "5100":
 		h := md5.Sum(data)
-		return hex.EncodeToString(h[:8])
+		return hex.EncodeToString(h[:8]), true
 
 	// -m 10 md5(pass.salt), -m 20 md5(salt.pass)
 	case "10", "md5passsalt", "20", "md5saltpass":
-		salt, ok := makeSaltHex()
-		if !ok {
-			return ""
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
 		}
+		salt := saltBuf[:]
 		h := md5.New()
 		if hashFunc == "20" || hashFunc == "md5saltpass" {
 			h.Write(salt) // salt first
@@ -1011,7 +1157,43 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		hex.Encode(out[:sumHexLen], sum)
 		out[sumHexLen] = ':'
 		copy(out[sumHexLen+1:], salt)
-		return string(out)
+		return string(out), true
+
+	// utf16le($pass) + salt / salt + utf16le($pass) — hashcat -m 30 / 40 (salt = ASCII hex, same as -m 10/20)
+	case "30", "md5utf16passsalt", "40", "md5utf16saltpass":
+		pwU16, ok := utf16LEPassStrict(data)
+		if !ok {
+			return "", true
+		}
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		h := md5.New()
+		if hashFunc == "40" || hashFunc == "md5utf16saltpass" {
+			h.Write(salt)
+			h.Write(pwU16)
+		} else {
+			h.Write(pwU16)
+			h.Write(salt)
+		}
+		sum := h.Sum(nil)
+		sumHexLen := hex.EncodedLen(len(sum))
+		out := make([]byte, sumHexLen+1+len(salt))
+		hex.Encode(out[:sumHexLen], sum)
+		out[sumHexLen] = ':'
+		copy(out[sumHexLen+1:], salt)
+		return string(out), true
+
+	// md5(utf16le($pass)) — hashcat -m 70
+	case "70", "md5utf16le":
+		pwU16, ok := utf16LEPassStrict(data)
+		if !ok {
+			return "", true
+		}
+		s := md5.Sum(pwU16)
+		return hex.EncodeToString(s[:]), true
 
 	// -m 2600 md5(md5($pass))
 	case "md5md5", "2600":
@@ -1019,21 +1201,22 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		var innerHex [32]byte
 		hex.Encode(innerHex[:], inner[:])
 		outer := md5.Sum(innerHex[:])
-		return hex.EncodeToString(outer[:])
+		return hex.EncodeToString(outer[:]), true
 
 	// SHA1
 
 	// sha1 -m 100
 	case "sha1", "100":
 		h := sha1.Sum(data)
-		return hex.EncodeToString(h[:])
+		return hex.EncodeToString(h[:]), true
 
 	// -m 110 sha1(pass.salt), -m 120 sha1(salt.pass)
 	case "110", "sha1passsalt", "120", "sha1saltpass":
-		salt, ok := makeSaltHex()
-		if !ok {
-			return ""
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
 		}
+		salt := saltBuf[:]
 		h := sha1.New()
 		if hashFunc == "120" || hashFunc == "sha1saltpass" {
 			h.Write(salt) // salt first
@@ -1048,7 +1231,42 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		hex.Encode(out[:40], sum)
 		out[40] = ':'
 		copy(out[41:], salt)
-		return string(out)
+		return string(out), true
+
+	// sha1 utf16le + salt — hashcat -m 130 / 140
+	case "130", "sha1utf16passsalt", "140", "sha1utf16saltpass":
+		pwU16, ok := utf16LEPassStrict(data)
+		if !ok {
+			return "", true
+		}
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		h := sha1.New()
+		if hashFunc == "140" || hashFunc == "sha1utf16saltpass" {
+			h.Write(salt)
+			h.Write(pwU16)
+		} else {
+			h.Write(pwU16)
+			h.Write(salt)
+		}
+		sum := h.Sum(nil)
+		out := make([]byte, 40+1+len(salt))
+		hex.Encode(out[:40], sum)
+		out[40] = ':'
+		copy(out[41:], salt)
+		return string(out), true
+
+	// sha1(utf16le($pass)) — hashcat -m 170
+	case "170", "sha1utf16le":
+		pwU16, ok := utf16LEPassStrict(data)
+		if !ok {
+			return "", true
+		}
+		sum := sha1.Sum(pwU16)
+		return hex.EncodeToString(sum[:]), true
 
 	// -m 4500 sha1(sha1($pass))
 	case "sha1sha1", "4500":
@@ -1056,7 +1274,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		var innerHex [40]byte
 		hex.Encode(innerHex[:], inner[:])
 		outer := sha1.Sum(innerHex[:])
-		return hex.EncodeToString(outer[:])
+		return hex.EncodeToString(outer[:]), true
 
 	// SHA2
 
@@ -1064,14 +1282,15 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 	case "sha2-224", "sha224", "1300":
 		h := sha256.New224()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// -m 1310 sha224(pass.salt), -m 1320 sha224(salt.pass)
 	case "1310", "sha224passsalt", "1320", "sha224saltpass":
-		salt, ok := makeSaltHex() // returns ASCII-hex salt
-		if !ok {
-			return ""
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
 		}
+		salt := saltBuf[:]
 		h := sha256.New224()
 		if hashFunc == "1320" || hashFunc == "sha224saltpass" {
 			h.Write(salt) // salt first
@@ -1086,19 +1305,20 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		hex.Encode(out[:56], sum)
 		out[56] = ':'
 		copy(out[57:], salt)
-		return string(out)
+		return string(out), true
 
 	// sha2-256 -m 1400
 	case "sha2-256", "sha256", "1400":
 		h := sha256.Sum256(data)
-		return hex.EncodeToString(h[:])
+		return hex.EncodeToString(h[:]), true
 
 	// -m 1410 sha256(pass.salt), -m 1420 sha256(salt.pass)
 	case "1410", "sha256passsalt", "1420", "sha256saltpass":
-		salt, ok := makeSaltHex() // reuse your helper that returns ASCII-hex salt
-		if !ok {
-			return ""
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
 		}
+		salt := saltBuf[:]
 		h := sha256.New()
 		if hashFunc == "1420" || hashFunc == "sha256saltpass" {
 			h.Write(salt) // salt first
@@ -1113,20 +1333,56 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		hex.Encode(out[:64], sum)
 		out[64] = ':'
 		copy(out[65:], salt)
-		return string(out)
+		return string(out), true
+
+	// sha256 utf16le + salt — hashcat -m 1430 / 1440
+	case "1430", "sha256utf16passsalt", "1440", "sha256utf16saltpass":
+		pwU16, ok := utf16LEPassStrict(data)
+		if !ok {
+			return "", true
+		}
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		h := sha256.New()
+		if hashFunc == "1440" || hashFunc == "sha256utf16saltpass" {
+			h.Write(salt)
+			h.Write(pwU16)
+		} else {
+			h.Write(pwU16)
+			h.Write(salt)
+		}
+		sum := h.Sum(nil)
+		out := make([]byte, 64+1+len(salt))
+		hex.Encode(out[:64], sum)
+		out[64] = ':'
+		copy(out[65:], salt)
+		return string(out), true
+
+	// sha256(utf16le($pass)) — hashcat -m 1470
+	case "1470", "sha256utf16le":
+		pwU16, ok := utf16LEPassStrict(data)
+		if !ok {
+			return "", true
+		}
+		sum := sha256.Sum256(pwU16)
+		return hex.EncodeToString(sum[:]), true
 
 	// sha2-384 -m 10800
 	case "sha2-384", "sha384", "10800":
 		h := sha512.New384()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// -m 10810 sha384(pass.salt), -m 10820 sha384(salt.pass)
 	case "10810", "sha384passsalt", "10820", "sha384saltpass":
-		salt, ok := makeSaltHex() // ASCII-hex salt
-		if !ok {
-			return ""
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
 		}
+		salt := saltBuf[:]
 		h := sha512.New384()
 		if hashFunc == "10820" || hashFunc == "sha384saltpass" {
 			h.Write(salt) // salt first
@@ -1142,19 +1398,20 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		hex.Encode(out[:96], sum)
 		out[96] = ':'
 		copy(out[97:], salt)
-		return string(out)
+		return string(out), true
 
 	// sha2-512 -m 1700
 	case "sha2-512", "sha512", "1700":
 		h := sha512.Sum512(data)
-		return hex.EncodeToString(h[:])
+		return hex.EncodeToString(h[:]), true
 
 	// -m 1710 sha512(pass.salt), -m 1720 sha512(salt.pass)
 	case "1710", "sha512passsalt", "1720", "sha512saltpass":
-		salt, ok := makeSaltHex() // ASCII-hex salt
-		if !ok {
-			return ""
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
 		}
+		salt := saltBuf[:]
 		h := sha512.New()
 		if hashFunc == "1720" || hashFunc == "sha512saltpass" {
 			h.Write(salt) // salt first
@@ -1170,19 +1427,54 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		hex.Encode(out[:128], sum)
 		out[128] = ':'
 		copy(out[129:], salt)
-		return string(out)
+		return string(out), true
+
+	// sha512 utf16le + salt — hashcat -m 1730 / 1740
+	case "1730", "sha512utf16passsalt", "1740", "sha512utf16saltpass":
+		pwU16, ok := utf16LEPassStrict(data)
+		if !ok {
+			return "", true
+		}
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		h := sha512.New()
+		if hashFunc == "1740" || hashFunc == "sha512utf16saltpass" {
+			h.Write(salt)
+			h.Write(pwU16)
+		} else {
+			h.Write(pwU16)
+			h.Write(salt)
+		}
+		sum := h.Sum(nil)
+		out := make([]byte, 128+1+len(salt))
+		hex.Encode(out[:128], sum)
+		out[128] = ':'
+		copy(out[129:], salt)
+		return string(out), true
+
+	// sha512(utf16le($pass)) — hashcat -m 1770
+	case "1770", "sha512utf16le":
+		pwU16, ok := utf16LEPassStrict(data)
+		if !ok {
+			return "", true
+		}
+		sum := sha512.Sum512(pwU16)
+		return hex.EncodeToString(sum[:]), true
 
 	// sha2-512-224
 	case "sha2-512-224", "sha512-224", "sha512224":
 		h := sha512.New512_224()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// sha2-512-256
 	case "sha2-512-256", "sha512-256", "sha512256":
 		h := sha512.New512_256()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// SHA3
 
@@ -1190,25 +1482,25 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 	case "sha3-224", "sha3224", "17300":
 		h := sha3.New224()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
-	// sha3-256 om 17400
+	// sha3-256 -m 17400
 	case "sha3-256", "sha3256", "17400":
 		h := sha3.New256()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
-	// sha3-384 om 17500
+	// sha3-384 -m 17500
 	case "sha3-384", "sha3384", "17500":
 		h := sha3.New384()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
-	// sha3-512 om 17600
+	// sha3-512 -m 17600
 	case "sha3-512", "sha3512", "17600":
 		h := sha3.New512()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// Keccak
 
@@ -1216,42 +1508,134 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 	case "keccak-224", "keccak224", "17700":
 		h := keccak.New224()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// keccak-256 -m 17800
 	case "keccak-256", "keccak256", "17800":
 		h := sha3.NewLegacyKeccak256()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// keccak-384 -m 17900 (raw hex)
 	case "keccak-384", "keccak384", "17900":
 		h := keccak.New384()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// keccak-512 -m 18000
 	case "keccak-512", "keccak512", "18000":
 		h := sha3.NewLegacyKeccak512()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
+
+	// HMAC (hashcat: hex_digest : salt)
+
+	case "50", "hmac-md5-pass", "60", "hmac-md5-salt":
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		var m []byte
+		if hashFunc == "50" || hashFunc == "hmac-md5-pass" {
+			h := hmac.New(md5.New, data)
+			h.Write(salt)
+			m = h.Sum(nil)
+		} else {
+			h := hmac.New(md5.New, salt)
+			h.Write(data)
+			m = h.Sum(nil)
+		}
+		return hexMACLineDigest(m, salt), true
+
+	case "150", "hmac-sha1-pass", "160", "hmac-sha1-salt":
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		var m []byte
+		if hashFunc == "150" || hashFunc == "hmac-sha1-pass" {
+			h := hmac.New(sha1.New, data)
+			h.Write(salt)
+			m = h.Sum(nil)
+		} else {
+			h := hmac.New(sha1.New, salt)
+			h.Write(data)
+			m = h.Sum(nil)
+		}
+		return hexMACLineDigest(m, salt), true
+
+	case "1450", "hmac-sha256-pass", "1460", "hmac-sha256-salt":
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		var m []byte
+		if hashFunc == "1450" || hashFunc == "hmac-sha256-pass" {
+			h := hmac.New(sha256.New, data)
+			h.Write(salt)
+			m = h.Sum(nil)
+		} else {
+			h := hmac.New(sha256.New, salt)
+			h.Write(data)
+			m = h.Sum(nil)
+		}
+		return hexMACLineDigest(m, salt), true
+
+	case "1750", "hmac-sha512-pass", "1760", "hmac-sha512-salt":
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		var m []byte
+		if hashFunc == "1750" || hashFunc == "hmac-sha512-pass" {
+			h := hmac.New(sha512.New, data)
+			h.Write(salt)
+			m = h.Sum(nil)
+		} else {
+			h := hmac.New(sha512.New, salt)
+			h.Write(data)
+			m = h.Sum(nil)
+		}
+		return hexMACLineDigest(m, salt), true
+
+	case "6050", "hmac-ripemd160-pass", "6060", "hmac-ripemd160-salt":
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		var m []byte
+		if hashFunc == "6050" || hashFunc == "hmac-ripemd160-pass" {
+			h := hmac.New(ripemd160.New, data)
+			h.Write(salt)
+			m = h.Sum(nil)
+		} else {
+			h := hmac.New(ripemd160.New, salt)
+			h.Write(data)
+			m = h.Sum(nil)
+		}
+		return hexMACLineDigest(m, salt), true
 
 	// BLAKE2
 
 	// blake2b-256 (raw hex)
 	case "blake2b-256", "blake2b256":
 		h := blake2b.Sum256(data)
-		return hex.EncodeToString(h[:])
+		return hex.EncodeToString(h[:]), true
 
 	// blake2b-384 (raw hex)
 	case "blake2b-384", "blake2b384":
 		h := blake2b.Sum384(data)
-		return hex.EncodeToString(h[:])
+		return hex.EncodeToString(h[:]), true
 
 	// blake2b-512 (raw hex)
 	case "blake2b-512", "blake2b512":
 		h := blake2b.Sum512(data)
-		return hex.EncodeToString(h[:])
+		return hex.EncodeToString(h[:]), true
 
 	// hashcat mode -m 600 BLAKE2b-512, $BLAKE2$<hex>
 	case "600":
@@ -1260,12 +1644,67 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		buf := make([]byte, len(pB)+hex.EncodedLen(len(h)))
 		copy(buf, pB)
 		hex.Encode(buf[len(pB):], h[:])
-		return string(buf)
+		return string(buf), true
+
+	// hashcat -m 610 BLAKE2b-512($pass.$salt), -m 620 BLAKE2b-512($salt.$pass)
+	case "610", "blake2b512passsalt", "620", "blake2b512saltpass":
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		var msg []byte
+		if hashFunc == "620" || hashFunc == "blake2b512saltpass" {
+			msg = append(append(msg, salt...), data...)
+		} else {
+			msg = append(append(msg, data...), salt...)
+		}
+		h := blake2b.Sum512(msg)
+		const pB = "$BLAKE2$"
+		buf := make([]byte, len(pB)+hex.EncodedLen(len(h))+1+len(salt))
+		copy(buf, pB)
+		hex.Encode(buf[len(pB):len(pB)+hex.EncodedLen(len(h))], h[:])
+		i := len(pB) + hex.EncodedLen(len(h))
+		buf[i] = ':'
+		copy(buf[i+1:], salt)
+		return string(buf), true
+
+	// hashcat -m 34800 BLAKE2b-256 $BLAKE2$<hex> (hashcat-compatible; not raw hex)
+	case "34800":
+		h := blake2b.Sum256(data)
+		const pB = "$BLAKE2$"
+		buf := make([]byte, len(pB)+hex.EncodedLen(len(h)))
+		copy(buf, pB)
+		hex.Encode(buf[len(pB):], h[:])
+		return string(buf), true
+
+	// hashcat -m 34810 / 34820 BLAKE2b-256 salted
+	case "34810", "blake2b256passsalt", "34820", "blake2b256saltpass":
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		var msg []byte
+		if hashFunc == "34820" || hashFunc == "blake2b256saltpass" {
+			msg = append(append(msg, salt...), data...)
+		} else {
+			msg = append(append(msg, data...), salt...)
+		}
+		h := blake2b.Sum256(msg)
+		const pB = "$BLAKE2$"
+		buf := make([]byte, len(pB)+hex.EncodedLen(len(h))+1+len(salt))
+		copy(buf, pB)
+		hex.Encode(buf[len(pB):len(pB)+hex.EncodedLen(len(h))], h[:])
+		i := len(pB) + hex.EncodedLen(len(h))
+		buf[i] = ':'
+		copy(buf[i+1:], salt)
+		return string(buf), true
 
 	// blake2s-256 (raw hex)
 	case "blake2s-256", "blake2s256":
 		h := blake2s.Sum256(data)
-		return hex.EncodeToString(h[:])
+		return hex.EncodeToString(h[:]), true
 
 	// hashcat mode -m 31000 BLAKE2s-256, $BLAKE2$<hex>
 	case "31000":
@@ -1274,7 +1713,17 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		buf := make([]byte, len(pS)+hex.EncodedLen(len(h)))
 		copy(buf, pS)
 		hex.Encode(buf[len(pS):], h[:])
-		return string(buf)
+		return string(buf), true
+
+	// hashcat -m 33300 HMAC-BLAKE2s (key = $pass)
+	case "33300", "hmac-blake2s-pass":
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		sum := blake2sHMACHashcat(data, salt)
+		return hexMACLineDigest(sum, salt), true
 
 	// Other Hashes
 
@@ -1282,9 +1731,9 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 	case "ripemd-160", "ripemd160", "6000":
 		h := ripemd160.New()
 		h.Write(data)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
-		// mysql5 -m 300
+	// mysql4/mysql5 -m 300
 	case "mysql4", "mysql5", "300":
 		first := sha1.Sum(data)
 		second := sha1.Sum(first[:])
@@ -1296,7 +1745,7 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 				buf[i] -= 32
 			}
 		}
-		return string(buf)
+		return string(buf), true
 
 	// ntlm -m 1000 (strict: skip invalid UTF-8 / UTF-16)
 	case "ntlm", "1000":
@@ -1304,10 +1753,10 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		for i := 0; i < len(data); {
 			r, sz := utf8.DecodeRune(data[i:])
 			if r == utf8.RuneError && sz == 1 {
-				return ""
+				return "", true
 			}
 			if r >= 0xD800 && r <= 0xDFFF {
-				return ""
+				return "", true
 			}
 			rs = append(rs, r)
 			i += sz
@@ -1315,66 +1764,126 @@ func hashBytes(hashFunc string, data []byte, cost int) string {
 		u16 := utf16.Encode(rs)
 		h := md4.New()
 		_ = binary.Write(h, binary.LittleEndian, u16)
-		return hex.EncodeToString(h.Sum(nil))
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// Crypt / KDF
 
+	// PBKDF2-HMAC-SHA256 -m 10900
+	case "10900", "pbkdf2-sha256":
+		var salt [8]byte
+		if !readRand(salt[:]) {
+			return "", true
+		}
+		dk := pbkdf2.Key(data, salt[:], pbkdf2IterCount, 24, sha256.New)
+		return fmt.Sprintf("sha256:%d:%s:%s", pbkdf2IterCount, base64.StdEncoding.EncodeToString(salt[:]), base64.StdEncoding.EncodeToString(dk)), true
+
+	// PBKDF2-HMAC-MD5 -m 11900
+	case "11900", "pbkdf2-md5":
+		var salt [8]byte
+		if !readRand(salt[:]) {
+			return "", true
+		}
+		dk := pbkdf2.Key(data, salt[:], pbkdf2IterCount, 32, md5.New)
+		return fmt.Sprintf("md5:%d:%s:%s", pbkdf2IterCount, base64.StdEncoding.EncodeToString(salt[:]), base64.StdEncoding.EncodeToString(dk)), true
+
+	// PBKDF2-HMAC-SHA1 -m 12000
+	case "12000", "pbkdf2-sha1":
+		var salt [8]byte
+		if !readRand(salt[:]) {
+			return "", true
+		}
+		dk := pbkdf2.Key(data, salt[:], pbkdf2IterCount, 16, sha1.New)
+		return fmt.Sprintf("sha1:%d:%s:%s", pbkdf2IterCount, base64.StdEncoding.EncodeToString(salt[:]), base64.StdEncoding.EncodeToString(dk)), true
+
+	// PBKDF2-HMAC-SHA512 -m 12100
+	case "12100", "pbkdf2-sha512":
+		var salt [8]byte
+		if !readRand(salt[:]) {
+			return "", true
+		}
+		dk := pbkdf2.Key(data, salt[:], pbkdf2IterCount, 16, sha512.New)
+		return fmt.Sprintf("sha512:%d:%s:%s", pbkdf2IterCount, base64.StdEncoding.EncodeToString(salt[:]), base64.StdEncoding.EncodeToString(dk)), true
+
+	// scrypt -m 8900 (hashcat self-test parameters N=16384 r=8 p=1, dkLen=32)
+	case "8900", "scrypt":
+		var salt [8]byte
+		if !readRand(salt[:]) {
+			return "", true
+		}
+		const (
+			scryptN = 16384
+			scryptR = 8
+			scryptP = 1
+			scryptK = 32
+		)
+		dk, err := scrypt.Key(data, salt[:], scryptN, scryptR, scryptP, scryptK)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "scrypt:", err)
+			return "", true
+		}
+		return fmt.Sprintf("SCRYPT:%d:%d:%d:%s:%s", scryptN, scryptR, scryptP, base64.StdEncoding.EncodeToString(salt[:]), base64.StdEncoding.EncodeToString(dk)), true
+
 	// argon2id
 	case "argon2id", "34000":
-		salt := make([]byte, 16) // random 16-byte salt
-		if _, err := rand.Read(salt); err != nil {
-			fmt.Fprintln(os.Stderr, "Error generating salt:", err)
-			return ""
+		var salt [16]byte // random 16-byte salt
+		if !readRand(salt[:]) {
+			return "", true
 		}
 		// use default argon2id parameters
 		t := uint32(4)       // time (iterations)
 		m := uint32(65536)   // memory cost in KiB
 		p := uint8(1)        // parallelism (number of threads)
 		keyLen := uint32(16) // key length in bytes
-		key := argon2.IDKey(data, salt, t, m, p, keyLen)
-		saltB64 := base64.RawStdEncoding.EncodeToString(salt)
+		key := argon2.IDKey(data, salt[:], t, m, p, keyLen)
+		saltB64 := base64.RawStdEncoding.EncodeToString(salt[:])
 		keyB64 := base64.RawStdEncoding.EncodeToString(key)
-		return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", m, t, p, saltB64, keyB64)
+		return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", m, t, p, saltB64, keyB64), true
 
 	// bcrypt -m 3200
 	case "bcrypt", "3200":
 		hashed, err := bcrypt.GenerateFromPassword(data, cost)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "bcrypt error:", err)
-			return ""
+			return "", true
 		}
-		return string(hashed)
+		return string(hashed), true
 
 	// wordpress bcrypt
 	case "wpbcrypt":
-		return wpbcrypt(data, cost)
+		return wpbcrypt(data, cost), true
 
 	// md5crypt -m 500
 	case "md5crypt", "500":
-		return md5crypt(data)
+		return md5crypt(data), true
 
 	// sha256crypt ($5$) -m 7400
 	case "sha256crypt", "7400":
-		return sha256crypt(data)
+		return sha256crypt(data), true
 
 	// sha512crypt ($6$) -m 1800
 	case "sha512crypt", "1800":
-		return sha512crypt(data)
+		return sha512crypt(data), true
 
 	// phpass -m 400
 	case "phpass", "phpbb3", "400": // phpass = $P$, phpbb3 = $H$
-		return phpassMD5(data, hashFunc, 11, nil)
+		return phpassMD5(data, hashFunc, 11, nil), true
 
 	// yescrypt
 	case "yescrypt":
-		return yescryptHash(data)
+		return yescryptHash(data), true
 
 	default:
+		return "", false
+	}
+}
+
+func hashBytes(hashFunc string, data []byte, cost int) string {
+	s, ok := hashBytesDispatch(hashFunc, data, cost)
+	if !ok {
 		log.Printf("--> Invalid hash function: %s <--\n", hashFunc)
-		helpFunc()
-		os.Exit(1)
 		return ""
 	}
+	return s
 }
 
 // process wordlist chunks
@@ -1412,6 +1921,10 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 			"md5crypt": true, "500": true,
 			"sha256crypt": true, "7400": true,
 			"sha512crypt": true, "1800": true,
+			"10900": true, "pbkdf2-sha256": true,
+			"11900": true, "pbkdf2-md5": true,
+			"12000": true, "pbkdf2-sha1": true,
+			"12100": true, "pbkdf2-sha512": true,
 		}
 		if bufFixed[hashFunc] {
 			readBufferSize = numGoroutines + 16*32
@@ -1429,11 +1942,12 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 		}
 	}
 
-	// lower read buffer for argon2id, yescrypt
+	// lower read buffer for argon2id, yescrypt, scrypt
 	{
 		bufSlow := map[string]bool{
 			"argon2id": true, "34000": true,
 			"yescrypt": true,
+			"8900":     true, "scrypt": true,
 		}
 		if bufSlow[hashFunc] {
 			readBufferSize = numGoroutines + 8*2
@@ -1631,6 +2145,7 @@ func main() {
 	benchmark := flag.Bool("b", false, "Benchmark mode (disables output)")
 	threads := flag.Int("t", 0, "Number of CPU threads to use")
 	costFlag := flag.Int("cost", 10, "Bcrypt cost (4-31)")
+	iterFlag := flag.Int("i", 0, "PBKDF2 iteration count (modes 10900, 11900, 12000, 12100)")
 	version := flag.Bool("version", false, "Program version:")
 	cyclone := flag.Bool("cyclone", false, "hashgen")
 	help := flag.Bool("help", false, "Prints help:")
@@ -1657,7 +2172,23 @@ func main() {
 	// run sanity checks on algo input (-m)
 	if *hashFunc == "" {
 		log.Fatalf("--> missing '-m algo' <--\n")
-		helpFunc()
+	}
+	modeProbe = true
+	_, ok := hashBytesDispatch(*hashFunc, nil, *costFlag)
+	modeProbe = false
+	if !ok {
+		fmt.Fprintf(os.Stderr, "--> invalid -m mode %q (see -help for supported modes) <--\n", *hashFunc)
+		os.Exit(1)
+	}
+
+	if *iterFlag < 0 || *iterFlag > 100000000 {
+		log.Fatalf("Error: -i must be between 0 and 100000000")
+	}
+	if *iterFlag > 0 {
+		if !isPBKDF2Mode(*hashFunc) {
+			log.Fatalf("Error: -i is only valid with PBKDF2 modes (10900, 11900, 12000, 12100)")
+		}
+		pbkdf2IterCount = *iterFlag
 	}
 
 	// block output flags when benchmarking
