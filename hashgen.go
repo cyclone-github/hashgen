@@ -29,6 +29,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/cyclone-github/base58"
+	"github.com/cyclone-github/md6"
 	"github.com/ebfe/keccak" // keccak 224/384
 	"github.com/openwall/yescrypt-go"
 	"golang.org/x/crypto/argon2"
@@ -63,10 +64,12 @@ v1.3.0; 2026-04-11
 	optimized salt RNG for fewer syscalls on salted hash modes
 	added sanity check on invalid -m nth before opening stdin/wordlist
 	compiled with Go v1.26.2
+v1.3.1; 2026-04-13
+	add modes: MD6-128, 224, 256, 384, 512
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.3.0; 2026-04-11\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.3.1; 2026-04-13\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -117,6 +120,11 @@ func helpFunc() {
 		"70\t\t(hashcat compatible md5 utf16le($pass))\n" +
 		"md5md5\t\t2600\n" +
 		"md5crypt\t500 (Linux shadow $1$)\n" +
+		"md6-128\n" +
+		"md6-224\n" +
+		"md6-256\t\t34600\n" +
+		"md6-384\n" +
+		"md6-512\n" +
 		"mysql4/mysql5\t300\n" +
 		"morsecode\t(ITU-R M.1677-1)\n" +
 		"morsedecode\t(ITU-R M.1677-1)\n" +
@@ -1202,6 +1210,33 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		hex.Encode(innerHex[:], inner[:])
 		outer := md5.Sum(innerHex[:])
 		return hex.EncodeToString(outer[:]), true
+
+	// MD6
+
+	// md6-128
+	case "md6-128", "md6128":
+		h := md6.Sum(128, data)
+		return hex.EncodeToString(h), true
+
+	// md6-224
+	case "md6-224", "md6224":
+		h := md6.Sum(224, data)
+		return hex.EncodeToString(h), true
+
+	// md6-256
+	case "md6", "md6-256", "md6256", "34600":
+		h := md6.Sum256(data)
+		return hex.EncodeToString(h[:]), true
+
+	// md6-384
+	case "md6-384", "md6384":
+		h := md6.Sum(384, data)
+		return hex.EncodeToString(h), true
+
+	// md6-512
+	case "md6-512", "md6512":
+		h := md6.Sum512(data)
+		return hex.EncodeToString(h[:]), true
 
 	// SHA1
 

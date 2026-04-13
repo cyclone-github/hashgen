@@ -1,5 +1,7 @@
 github.com/cyclone-github/base58 v1.0.1 h1:T11LCPf4qv4tZg9c6GL4iiN1GGeOQBC4Szudtz5dmCE=
 github.com/cyclone-github/base58 v1.0.1/go.mod h1:hwV+09D9orDfxUj3/soTBr/Xwa/dinnLUQtMOxbbQN0=
+github.com/cyclone-github/md6 v0.4.13 h1:qxTCyq+ZRaHLigNi8FsE8bgF82Z4OM8iwCWbVPMSpwk=
+github.com/cyclone-github/md6 v0.4.13/go.mod h1:yKL7IkZQ5eBFd5qEp9SGbEiCE0RThq9AdPD4bFinsqA=
 github.com/ebfe/keccak v0.0.0-20150115210727-5cc570678d1b h1:BMyjwV6Fal/Ffphi4dJfulSxMeDl0xFS2vs5QLr6rsI=
 github.com/ebfe/keccak v0.0.0-20150115210727-5cc570678d1b/go.mod h1:fnviDXB7GJWiSUI9thIXmk9QKM8Rhj1JV/LcMRzkiVA=
 github.com/openwall/yescrypt-go v1.0.0 h1:jsGk48zkFvtUjGVOhYPGh+CS595JmTRcKnpggK2AON4=
