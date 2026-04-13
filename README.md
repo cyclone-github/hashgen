@@ -1,10 +1,19 @@
 [![Readme Card](https://github-readme-stats-fast.vercel.app/api/pin/?username=cyclone-github&repo=hashgen&theme=gruvbox)](https://github.com/cyclone-github/hashgen/)
 
-<!-- [![Go Report Card](https://goreportcard.com/badge/github.com/cyclone-github/hashgen)](https://goreportcard.com/report/github.com/cyclone-github/hashgen) -->
+[![Go Report Card](https://goreportcard.com/badge/github.com/cyclone-github/hashgen)](https://goreportcard.com/report/github.com/cyclone-github/hashgen)
 [![GitHub issues](https://img.shields.io/github/issues/cyclone-github/hashgen.svg)](https://github.com/cyclone-github/hashgen/issues)
 [![License](https://img.shields.io/github/license/cyclone-github/hashgen.svg)](LICENSE)
 [![GitHub release](https://img.shields.io/github/release/cyclone-github/hashgen.svg)](https://github.com/cyclone-github/hashgen/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/cyclone-github/hashgen.svg)](https://pkg.go.dev/github.com/cyclone-github/hashgen)
+
+### Install latest published release:
+```
+go install github.com/cyclone-github/hashgen@latest
+```
+### Install latest source code (bleeding edge):
+```
+go install github.com/cyclone-github/hashgen@main
+```
 
 # hashgen - Cyclone's hash generator
 ```
@@ -15,7 +24,7 @@ $ hashgen -m md5 -w rockyou.txt -b
 2026/04/11 12:28:58 CPU Threads: 16
 2026/04/11 12:28:58 Finished processing 14344391 lines in 0.446 sec (32.127 M lines/sec)
 ```
-**As of the this writing, hashgen (go) has a 2,519% faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** Hashgen has a top recorded hashrate of 32.127 million md5/sec on the test rig's Ryzen 7 3700X CPU! Much faster hashrates have been seen on higher end CPU's.
+**As of the this writing, hashgen (go) has a 2,500% + faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** Hashgen has a top recorded hashrate of 32.127 million md5/sec on the test rig's Ryzen 7 3700X CPU! Much faster hashrates have been seen on higher end CPU's.
 
 Hashgen is a CLI hash generator written in Go and can be cross compiled for Linux, Raspberry Pi, Windows & Mac, although testing and compiling is mainly done on debian 12 linux.
 
@@ -23,7 +32,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 
 ### Features:
 - Maintains original input order [PR 10](https://github.com/cyclone-github/hashgen/pull/10)
-- Supports 95+ modes/functions (see list below)
+- Supports 100+ modes/functions (see list below)
 - Encode / decode base64, base58, base32
 - Hex / dehex wordlists
 - Supports ASCII, UTF-8 and $HEX[] input
@@ -77,6 +86,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | **`MDx`** | |
 | md4 | 900 |
 | md5 | 0 |
+| md5md5 | 2600 |
 | halfmd5 | 5100 |
 | md5passsalt | 10 |
 | md5saltpass | 20 |
@@ -85,8 +95,13 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | 50 | (hashcat compatible HMAC-MD5 key = $pass) |
 | 60 | (hashcat compatible HMAC-MD5 key = $salt) |
 | 70 | (hashcat compatible md5 utf16le($pass)) |
-| md5md5 | 2600 |
 | | |
+| **`MD6`** | |
+| md6-128 | |
+| md6-224 | |
+| md6-256 | 34600 |
+| md6-384 | |
+| md6-512 | |
 | **`SHA1`** | |
 | sha1 | 100 |
 | sha1sha1 | 4500 |
@@ -176,15 +191,6 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 - https://github.com/cyclone-github/hashgen-testing/tree/main/benchmarks
 - In addition to hashgen (go), I have also written hashgen in python, php, C, and Rust, although Rust and C need a lot of work to unlock their full performance potential. If you speak C or Rust, I'd be curious to see how fast you can push hashgen!
   - https://github.com/cyclone-github/hashgen-testing
-
-### Install latest published release:
-```
-go install github.com/cyclone-github/hashgen@latest
-```
-### Install latest source code (bleeding edge):
-```
-go install github.com/cyclone-github/hashgen@main
-```
 
 ### Compile from source:
 - This assumes you have Go and Git installed
