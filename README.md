@@ -24,7 +24,7 @@ $ hashgen -m md5 -w rockyou.txt -b
 2026/04/11 12:28:58 CPU Threads: 16
 2026/04/11 12:28:58 Finished processing 14344391 lines in 0.446 sec (32.127 M lines/sec)
 ```
-**As of the this writing, hashgen (go) has a 2,500% + faster md5 hashrate vs the next fastest publicly available CPU based hash generator (see benchmarks).** Hashgen has a top recorded hashrate of 32.127 million md5/sec on the test rig's Ryzen 7 3700X CPU! Much faster hashrates have been seen on higher end CPU's.
+Hashgen has a top recorded hashrate of 32.127 million md5/sec on the test rig's Ryzen 7 3700X CPU. (see benchmarks) Much faster hashrates have been seen on newer / faster CPU's.
 
 Hashgen is a CLI hash generator written in Go and can be cross compiled for Linux, Raspberry Pi, Windows & Mac, although testing and compiling is mainly done on debian 12 linux.
 
