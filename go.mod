@@ -7,7 +7,7 @@ require (
 	github.com/cyclone-github/md6 v0.4.13
 	github.com/ebfe/keccak v0.0.0-20150115210727-5cc570678d1b
 	github.com/openwall/yescrypt-go v1.0.0
-	golang.org/x/crypto v0.51.0
+	golang.org/x/crypto v0.52.0
 )
 
-require golang.org/x/sys v0.44.0 // indirect
+require golang.org/x/sys v0.45.0 // indirect
