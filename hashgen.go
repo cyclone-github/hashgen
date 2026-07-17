@@ -65,7 +65,7 @@ v1.3.0; 2026-04-11
 	added sanity check on invalid -m nth before opening stdin/wordlist
 	compiled with Go v1.26.2
 v1.3.1; 2026-04-13
-	add modes: MD6-128, 224, 256, 384, 512
+	add modes: MD6-128, MD6-224, MD6-256, MD6-384, MD6-512
 */
 
 func versionFunc() {
