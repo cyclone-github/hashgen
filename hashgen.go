@@ -79,6 +79,8 @@ v1.3.2; 2026-08-18
 	add modes: LDAP SHA/SSHA -m 101, 1411, 1711
 	add modes: -m 3500, 4300, 4400, 4700, 18500, 18501, 20800, 32800, 34400, 34500, 35900
 	refactor modes: -m 2600 and 4500
+	add bcrypt prehash modes: -m 25600, 25800, 28400, 30600
+	add hashcat alias: wpbcrypt -m 35500
 */
 
 func versionFunc() {
@@ -93,7 +95,7 @@ func helpFunc() {
 		"./hashgen -m bcrypt -cost 8 -w wordlist.txt\n" +
 		"./hashgen -m 10900 -i 2000 -w wordlist.txt\n" +
 		"cat wordlist | ./hashgen -m md5 -hashplain\n" +
-		"\nAll Supported Options:\n-m {mode}\n-w {wordlist input}\n-t {cpu threads}\n-o {wordlist output}\n-b {benchmark mode}\n-cost {bcrypt / wpbcrypt only; default 10}\n-i {PBKDF2 iterations for 10900-12100; 0 means 1000; invalid with other modes}\n-hashplain {hash:plain output}\n-help {this text}\n-version {version string}\n" +
+		"\nAll Supported Options:\n-m {mode}\n-w {wordlist input}\n-t {cpu threads}\n-o {wordlist output}\n-b {benchmark mode}\n-cost {bcrypt only; default 10}\n-i {PBKDF2 iterations for 10900-12100; 0 means 1000; invalid with other modes}\n-hashplain {hash:plain output}\n-help {this text}\n-version {version string}\n" +
 		"\nIf -w is not specified, defaults to stdin\n" +
 		"If -o is not specified, defaults to stdout\n" +
 		"If -t is not specified, defaults to max available CPU threads\n" +
@@ -106,6 +108,11 @@ func helpFunc() {
 		"base64decode\n" +
 		"base64encode\n" +
 		"bcrypt\t\t3200\n" +
+		"25600\t\t(hashcat compatible bcrypt(md5($pass)))\n" +
+		"25800\t\t(hashcat compatible bcrypt(sha1($pass)))\n" +
+		"28400\t\t(hashcat compatible bcrypt(sha512($pass)))\n" +
+		"30600\t\t(hashcat compatible bcrypt(sha256($pass)))\n" +
+		"35500\t\twpbcrypt (WordPress bcrypt-HMAC-SHA384)\n" +
 		"blake2s-256\n" +
 		"31000\t\t(hashcat compatible BLAKE2s-256)\n" +
 		"33300\t\t(hashcat compatible HMAC-BLAKE2s key = $pass)\n" +
@@ -223,7 +230,6 @@ func helpFunc() {
 		"keccak-384\t17900\n" +
 		"keccak-512\t18000\n" +
 		"scrypt\t\t8900\n" +
-		"wpbcrypt\t(WordPress bcrypt-HMAC-SHA384)\n" +
 		"gost-yescrypt\t(Linux shadow $gy$)\n" +
 		"yescrypt\t(Linux shadow $y$)\n"
 	fmt.Fprintln(os.Stderr, str)
@@ -320,7 +326,7 @@ func utf16LEPassStrict(data []byte) ([]byte, bool) {
 	return out, true
 }
 
-// nested hash modes pass lowercase hex text between digest stages
+// hash composition helpers return lowercase hex text for the next stage
 func md5HexBytes(data []byte) [32]byte {
 	sum := md5.Sum(data)
 	var out [32]byte
@@ -345,6 +351,13 @@ func sha224HexBytes(data []byte) [56]byte {
 func sha256HexBytes(data []byte) [64]byte {
 	sum := sha256.Sum256(data)
 	var out [64]byte
+	hex.Encode(out[:], sum[:])
+	return out
+}
+
+func sha512HexBytes(data []byte) [128]byte {
+	sum := sha512.Sum512(data)
+	var out [128]byte
 	hex.Encode(out[:], sum[:])
 	return out
 }
@@ -1358,6 +1371,15 @@ func cmiyc(password []byte, saltRaw []byte) string {
 		cmiycRounds, cmiycMemLog, enc.EncodeToString(salt[:]), enc.EncodeToString(final[:32]))
 }
 
+func bcryptHash(password []byte, cost int) string {
+	hashed, err := bcrypt.GenerateFromPassword(password, cost)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "bcrypt error:", err)
+		return ""
+	}
+	return string(hashed)
+}
+
 // WordPress bcrypt: $wp$2y$10$<22-salt><31-hash>
 // bcrypt(base64(HMAC-SHA384(key="wp-sha384",$password)))
 func wpbcrypt(password []byte, cost int) string {
@@ -1504,14 +1526,25 @@ func gostYescryptHash(pass []byte) string {
 	return setting + "$" + encode64(digest)
 }
 
+func isBcryptMode(mode string) bool {
+	switch mode {
+	case "bcrypt", "3200", "25600", "25800", "28400", "30600", "wpbcrypt", "35500":
+		return true
+	default:
+		return false
+	}
+}
+
 // supported hash algos / modes
 func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 	if modeProbe {
+		if isBcryptMode(hashFunc) {
+			return "", true
+		}
 		switch hashFunc {
 		case "argon2id", "34000", "yescrypt", "gost-yescrypt",
 			"8900", "scrypt",
 			"10900", "pbkdf2-sha256", "11900", "pbkdf2-md5", "12000", "pbkdf2-sha1", "12100", "pbkdf2-sha512",
-			"bcrypt", "3200", "wpbcrypt",
 			"md5crypt", "500", "sha1crypt", "15100", "sha256crypt", "7400", "sha512crypt", "1800", "sm3crypt", "35100", "cmiyc",
 			"phpass", "phpbb3", "400":
 			return "", true
@@ -2490,15 +2523,25 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 
 	// bcrypt -m 3200
 	case "bcrypt", "3200":
-		hashed, err := bcrypt.GenerateFromPassword(data, cost)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "bcrypt error:", err)
-			return "", true
-		}
-		return string(hashed), true
+		return bcryptHash(data, cost), true
 
-	// wordpress bcrypt
-	case "wpbcrypt":
+	// bcrypt prehash modes
+	case "25600": // bcrypt(md5($pass))
+		prehash := md5HexBytes(data)
+		return bcryptHash(prehash[:], cost), true
+	case "25800": // bcrypt(sha1($pass))
+		prehash := sha1HexBytes(data)
+		return bcryptHash(prehash[:], cost), true
+	case "28400": // bcrypt(sha512($pass))
+		prehash := sha512HexBytes(data)
+		// bcrypt uses at most 72 password bytes; Hashcat mode 28400 does the same.
+		return bcryptHash(prehash[:72], cost), true
+	case "30600": // bcrypt(sha256($pass))
+		prehash := sha256HexBytes(data)
+		return bcryptHash(prehash[:], cost), true
+
+	// wordpress bcrypt -m 35500
+	case "wpbcrypt", "35500":
 		return wpbcrypt(data, cost), true
 
 	// md5crypt -m 500
@@ -2599,14 +2642,8 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 	}
 
 	// lower read buffer for bcrypt-family (scale by cost)
-	{
-		bufBcrypt := map[string]bool{
-			"bcrypt": true, "3200": true,
-			"wpbcrypt": true,
-		}
-		if bufBcrypt[hashFunc] {
-			readBufferSize = numGoroutines/cost + 32*2
-		}
+	if isBcryptMode(hashFunc) {
+		readBufferSize = numGoroutines/cost + 32*2
 	}
 
 	// lower read buffer for argon2id, yescrypt, gost-yescrypt, scrypt, cmiyc
@@ -2870,10 +2907,10 @@ func main() {
 
 	// run sanity check for bcrypt / cost
 	costProvided := *costFlag != 10
-	if costProvided && *hashFunc != "bcrypt" && *hashFunc != "3200" && *hashFunc != "wpbcrypt" {
+	if costProvided && !isBcryptMode(*hashFunc) {
 		log.Fatalf("Error: -cost flag is only allowed for bcrypt modes")
 	}
-	if *hashFunc == "bcrypt" || *hashFunc == "3200" || *hashFunc == "wpbcrypt" {
+	if isBcryptMode(*hashFunc) {
 		if *costFlag < bcrypt.MinCost || *costFlag > bcrypt.MaxCost {
 			log.Fatalf("Invalid bcrypt cost: must be between %d and %d", bcrypt.MinCost, bcrypt.MaxCost)
 		}
