@@ -108,11 +108,11 @@ func helpFunc() {
 		"base64decode\n" +
 		"base64encode\n" +
 		"bcrypt\t\t3200\n" +
-		"25600\t\t(hashcat compatible bcrypt(md5($pass)))\n" +
-		"25800\t\t(hashcat compatible bcrypt(sha1($pass)))\n" +
-		"28400\t\t(hashcat compatible bcrypt(sha512($pass)))\n" +
-		"30600\t\t(hashcat compatible bcrypt(sha256($pass)))\n" +
-		"35500\t\twpbcrypt (WordPress bcrypt-HMAC-SHA384)\n" +
+		"bcryptmd5\t25600\n" +
+		"bcryptsha1\t25800\n" +
+		"bcryptsha512\t28400\n" +
+		"bcryptsha256\t30600\n" +
+		"wpbcrypt\t35500 (WordPress bcrypt-HMAC-SHA384)\n" +
 		"blake2s-256\n" +
 		"31000\t\t(hashcat compatible BLAKE2s-256)\n" +
 		"33300\t\t(hashcat compatible HMAC-BLAKE2s key = $pass)\n" +
@@ -1528,7 +1528,7 @@ func gostYescryptHash(pass []byte) string {
 
 func isBcryptMode(mode string) bool {
 	switch mode {
-	case "bcrypt", "3200", "25600", "25800", "28400", "30600", "wpbcrypt", "35500":
+	case "bcrypt", "3200", "bcryptmd5", "25600", "bcryptsha1", "25800", "bcryptsha512", "28400", "bcryptsha256", "30600", "wpbcrypt", "35500":
 		return true
 	default:
 		return false
@@ -2526,17 +2526,17 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		return bcryptHash(data, cost), true
 
 	// bcrypt prehash modes
-	case "25600": // bcrypt(md5($pass))
+	case "bcryptmd5", "25600": // bcrypt(md5($pass))
 		prehash := md5HexBytes(data)
 		return bcryptHash(prehash[:], cost), true
-	case "25800": // bcrypt(sha1($pass))
+	case "bcryptsha1", "25800": // bcrypt(sha1($pass))
 		prehash := sha1HexBytes(data)
 		return bcryptHash(prehash[:], cost), true
-	case "28400": // bcrypt(sha512($pass))
+	case "bcryptsha512", "28400": // bcrypt(sha512($pass))
 		prehash := sha512HexBytes(data)
 		// bcrypt uses at most 72 password bytes; Hashcat mode 28400 does the same.
 		return bcryptHash(prehash[:72], cost), true
-	case "30600": // bcrypt(sha256($pass))
+	case "bcryptsha256", "30600": // bcrypt(sha256($pass))
 		prehash := sha256HexBytes(data)
 		return bcryptHash(prehash[:], cost), true
 

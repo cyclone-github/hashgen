@@ -11,6 +11,7 @@ add modes: LDAP SHA/SSHA -m 101, 1411, 1711
 add modes: -m 3500, 4300, 4400, 4700, 18500, 18501, 20800, 32800, 34400, 34500, 35900
 refactor modes: -m 2600 and 4500
 add bcrypt prehash modes: -m 25600, 25800, 28400, 30600
+add bcrypt aliases: bcryptmd5, bcryptsha1, bcryptsha512, bcryptsha256
 add hashcat alias: wpbcrypt -m 35500
 ```
 ### v1.3.1; 2026-04-13
