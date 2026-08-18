@@ -989,7 +989,7 @@ func sha1crypt(password []byte, saltRaw []byte) string {
 	for i := 0; i < 18; i += 3 {
 		enc(&out, digest[i], digest[i+1], digest[i+2])
 	}
-	enc(&out, digest[18], digest[19], 0)
+	enc(&out, digest[18], digest[19], digest[0])
 
 	return string(out)
 }
