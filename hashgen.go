@@ -76,6 +76,7 @@ v1.3.2; 2026-08-18
 	add mode: cmiyc (KoreLogic CMIYC 2026 contest algo)
 	add modes: Streebog/GOST 2012 -m 11700, 11750, 11760, 11800, 11850, 11860
 	add modes: SHA-384 UTF-16LE -m 10830, 10840, 10870
+	add modes: LDAP SHA/SSHA -m 101, 1411, 1711
 */
 
 func versionFunc() {
@@ -142,6 +143,7 @@ func helpFunc() {
 		"phpass\t\t400\n" +
 		"ripemd-160\t6000\n" +
 		"sha1\t\t100\n" +
+		"ldap-sha\t101 (Netscape LDAP {SHA})\n" +
 		"sha1sha1\t4500\n" +
 		"sha1passsalt\t110\n" +
 		"sha1saltpass\t120\n" +
@@ -156,6 +158,7 @@ func helpFunc() {
 		"sha256\t\t1400\n" +
 		"sha256passsalt\t1410\n" +
 		"sha256saltpass\t1420\n" +
+		"ssha256\t\t1411 (LDAP {SSHA256})\n" +
 		"1430\t\t(hashcat compatible sha256 utf16le($pass).$salt)\n" +
 		"1440\t\t(hashcat compatible sha256 $salt.utf16le($pass))\n" +
 		"1470\t\t(hashcat compatible sha256 utf16le($pass))\n" +
@@ -169,6 +172,7 @@ func helpFunc() {
 		"sha512\t\t1700\n" +
 		"sha512passsalt\t1710\n" +
 		"sha512saltpass\t1720\n" +
+		"ssha512\t\t1711 (LDAP {SSHA512})\n" +
 		"1730\t\t(hashcat compatible sha512 utf16le($pass).$salt)\n" +
 		"1740\t\t(hashcat compatible sha512 $salt.utf16le($pass))\n" +
 		"1770\t\t(hashcat compatible sha512 utf16le($pass))\n" +
@@ -301,6 +305,54 @@ func utf16LEPassStrict(data []byte) ([]byte, bool) {
 		out[2*i+1] = byte(c >> 8)
 	}
 	return out, true
+}
+
+// LDAP SHA/SSHA family -m 101 / 111 / 1411 / 1711
+func ldapSHA(password []byte, mode string, saltRaw []byte) string {
+	if mode == "101" || mode == "ldap-sha" {
+		digest := sha1.Sum(password)
+		return "{SHA}" + base64.StdEncoding.EncodeToString(digest[:])
+	}
+
+	salt := saltRaw
+	if salt == nil {
+		salt = make([]byte, 8)
+		if !readRand(salt) {
+			return ""
+		}
+	}
+
+	var prefix string
+	var digest []byte
+
+	switch mode {
+	case "111", "ssha":
+		prefix = "{SSHA}"
+		h := sha1.New()
+		_, _ = h.Write(password)
+		_, _ = h.Write(salt)
+		digest = h.Sum(nil)
+	case "1411", "ssha256":
+		prefix = "{SSHA256}"
+		h := sha256.New()
+		_, _ = h.Write(password)
+		_, _ = h.Write(salt)
+		digest = h.Sum(nil)
+	case "1711", "ssha512":
+		prefix = "{SSHA512}"
+		h := sha512.New()
+		_, _ = h.Write(password)
+		_, _ = h.Write(salt)
+		digest = h.Sum(nil)
+	default:
+		return ""
+	}
+
+	payload := make([]byte, 0, len(digest)+len(salt))
+	payload = append(payload, digest...)
+	payload = append(payload, salt...)
+
+	return prefix + base64.StdEncoding.EncodeToString(payload)
 }
 
 // sha384 UTF-16LE family -m 10830 / 10840 / 10870
@@ -1637,23 +1689,9 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		h := sha1.Sum(data)
 		return hex.EncodeToString(h[:]), true
 
-	// ssha -m 111
-	case "ssha", "111":
-		var salt [8]byte
-		if !readRand(salt[:]) {
-			return "", true
-		}
-
-		h := sha1.New()
-		_, _ = h.Write(data)
-		_, _ = h.Write(salt[:])
-		digest := h.Sum(nil)
-
-		payload := make([]byte, 0, len(digest)+len(salt))
-		payload = append(payload, digest...)
-		payload = append(payload, salt[:]...)
-
-		return "{SSHA}" + base64.StdEncoding.EncodeToString(payload), true
+	// LDAP SHA/SSHA -m 101 / 111 / 1411 / 1711
+	case "ldap-sha", "101", "ssha", "111", "ssha256", "1411", "ssha512", "1711":
+		return ldapSHA(data, hashFunc, nil), true
 
 	// -m 110 sha1(pass.salt), -m 120 sha1(salt.pass)
 	case "110", "sha1passsalt", "120", "sha1saltpass":
