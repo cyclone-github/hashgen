@@ -74,6 +74,7 @@ v1.3.2; 2026-08-18
 	add mode: sha1crypt -m 15100
 	add mode: sm3crypt -m 35100
 	add mode: cmiyc (KoreLogic CMIYC 2026 contest algo)
+	add modes: Streebog/GOST 2012 -m 11700, 11750, 11760, 11800, 11850, 11860
 */
 
 func versionFunc() {
@@ -180,6 +181,12 @@ func helpFunc() {
 		"1760\t\t(hashcat compatible HMAC-SHA512 key = $salt)\n" +
 		"6050\t\t(hashcat compatible HMAC-RIPEMD160 key = $pass)\n" +
 		"6060\t\t(hashcat compatible HMAC-RIPEMD160 key = $salt)\n" +
+		"streebog-256\t11700\n" +
+		"11750\t\t(hashcat compatible HMAC-Streebog-256 key = $pass)\n" +
+		"11760\t\t(hashcat compatible HMAC-Streebog-256 key = $salt)\n" +
+		"streebog-512\t11800\n" +
+		"11850\t\t(hashcat compatible HMAC-Streebog-512 key = $pass)\n" +
+		"11860\t\t(hashcat compatible HMAC-Streebog-512 key = $salt)\n" +
 		"10900\t\t(hashcat compatible PBKDF2-HMAC-SHA256)\n" +
 		"11900\t\t(hashcat compatible PBKDF2-HMAC-MD5)\n" +
 		"12000\t\t(hashcat compatible PBKDF2-HMAC-SHA1)\n" +
@@ -300,6 +307,13 @@ func hexMACLineDigest(digest []byte, salt []byte) string {
 	out[n] = ':'
 	copy(out[n+1:], salt)
 	return string(out)
+}
+
+// reverse digest byte order for hashcat big-endian Streebog modes
+func reverseBytes(b []byte) {
+	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+		b[i], b[j] = b[j], b[i]
+	}
 }
 
 // hashcat blake2s_hmac for mode 33300
@@ -1917,6 +1931,17 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil)), true
 
+	// Streebog / GOST R 34.11-2012, big-endian
+	case "streebog-256", "streebog256", "11700":
+		sum := streebog.Sum256(data)
+		reverseBytes(sum[:])
+		return hex.EncodeToString(sum[:]), true
+
+	case "streebog-512", "streebog512", "11800":
+		sum := streebog.Sum512(data)
+		reverseBytes(sum[:])
+		return hex.EncodeToString(sum[:]), true
+
 	// HMAC (hashcat: hex_digest : salt)
 
 	case "50", "hmac-md5-pass", "60", "hmac-md5-salt":
@@ -2007,6 +2032,44 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 			h.Write(data)
 			m = h.Sum(nil)
 		}
+		return hexMACLineDigest(m, salt), true
+
+	case "11750", "hmac-streebog256-pass", "11760", "hmac-streebog256-salt":
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		var m []byte
+		if hashFunc == "11750" || hashFunc == "hmac-streebog256-pass" {
+			h := hmac.New(streebog.New256, data)
+			h.Write(salt)
+			m = h.Sum(nil)
+		} else {
+			h := hmac.New(streebog.New256, salt)
+			h.Write(data)
+			m = h.Sum(nil)
+		}
+		reverseBytes(m)
+		return hexMACLineDigest(m, salt), true
+
+	case "11850", "hmac-streebog512-pass", "11860", "hmac-streebog512-salt":
+		var saltBuf [16]byte
+		if !fillSaltHex8(saltBuf[:]) {
+			return "", true
+		}
+		salt := saltBuf[:]
+		var m []byte
+		if hashFunc == "11850" || hashFunc == "hmac-streebog512-pass" {
+			h := hmac.New(streebog.New512, data)
+			h.Write(salt)
+			m = h.Sum(nil)
+		} else {
+			h := hmac.New(streebog.New512, salt)
+			h.Write(data)
+			m = h.Sum(nil)
+		}
+		reverseBytes(m)
 		return hexMACLineDigest(m, salt), true
 
 	// BLAKE2
