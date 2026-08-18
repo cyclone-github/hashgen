@@ -32,6 +32,7 @@ import (
 	"github.com/cyclone-github/md6"
 	"github.com/ebfe/keccak" // keccak 224/384
 	"github.com/openwall/yescrypt-go"
+	"github.com/tarantool/go-gostcrypto/streebog"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/blake2b"
@@ -66,10 +67,12 @@ v1.3.0; 2026-04-11
 	compiled with Go v1.26.2
 v1.3.1; 2026-04-13
 	add modes: MD6-128, MD6-224, MD6-256, MD6-384, MD6-512
+v1.3.2; 2026-08-17
+	add mode: gost-yescrypt
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.3.1; 2026-04-13\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.3.2; 2026-08-17\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -184,6 +187,7 @@ func helpFunc() {
 		"keccak-512\t18000\n" +
 		"scrypt\t\t8900\n" +
 		"wpbcrypt\t(WordPress bcrypt-HMAC-SHA384)\n" +
+		"gost-yescrypt\t(Linux shadow $gy$)\n" +
 		"yescrypt\t(Linux shadow $y$)\n"
 	fmt.Fprintln(os.Stderr, str)
 	os.Exit(0)
@@ -1018,11 +1022,70 @@ func yescryptHash(pass []byte) string {
 	return "$y$" + string(params) + "$" + encode64(salt) + "$" + encode64(key)
 }
 
+// gost-yescrypt, using debian/libxcrypt defaults
+func gostYescryptHash(pass []byte) string {
+	const N = 4096
+	const r = 32
+	const p = 1
+	const keyLen = 32
+	const saltLen = 16
+
+	salt := make([]byte, saltLen)
+	if !readRand(salt) {
+		fmt.Fprintln(os.Stderr, "gost-yescrypt: salt error")
+		return ""
+	}
+
+	key, err := yescrypt.Key(pass, salt, N, r, p, keyLen)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "gost-yescrypt:", err)
+		return ""
+	}
+
+	encode64 := func(src []byte) string {
+		var dst []byte
+		var v uint32
+		bitsAcc := 0
+		for i := 0; i < len(src); i++ {
+			v |= uint32(src[i]) << bitsAcc
+			bitsAcc += 8
+			for bitsAcc >= 6 {
+				dst = append(dst, cryptBase64[v&0x3f])
+				v >>= 6
+				bitsAcc -= 6
+			}
+		}
+		if bitsAcc > 0 {
+			dst = append(dst, cryptBase64[v&0x3f])
+		}
+		return string(dst)
+	}
+
+	ln := bits.TrailingZeros(uint(N))
+	if 1<<ln != N || r <= 0 {
+		fmt.Fprintln(os.Stderr, "gost-yescrypt: invalid N/r")
+		return ""
+	}
+	params := []byte{'j', cryptBase64[(ln-1)&0x3f], cryptBase64[(r-1)&0x3f]}
+	setting := "$gy$" + string(params) + "$" + encode64(salt)
+
+	hk := streebog.Sum256(pass)
+	mac := hmac.New(streebog.New256, hk[:])
+	_, _ = mac.Write([]byte(setting))
+	interm := mac.Sum(nil)
+
+	mac = hmac.New(streebog.New256, interm)
+	_, _ = mac.Write(key)
+	digest := mac.Sum(nil)
+
+	return setting + "$" + encode64(digest)
+}
+
 // supported hash algos / modes
 func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 	if modeProbe {
 		switch hashFunc {
-		case "argon2id", "34000", "yescrypt",
+		case "argon2id", "34000", "yescrypt", "gost-yescrypt",
 			"8900", "scrypt",
 			"10900", "pbkdf2-sha256", "11900", "pbkdf2-md5", "12000", "pbkdf2-sha1", "12100", "pbkdf2-sha512",
 			"bcrypt", "3200", "wpbcrypt",
@@ -1907,6 +1970,10 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 	case "yescrypt":
 		return yescryptHash(data), true
 
+	// gost-yescrypt
+	case "gost-yescrypt":
+		return gostYescryptHash(data), true
+
 	default:
 		return "", false
 	}
@@ -1977,12 +2044,12 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 		}
 	}
 
-	// lower read buffer for argon2id, yescrypt, scrypt
+	// lower read buffer for argon2id, yescrypt, gost-yescrypt, scrypt
 	{
 		bufSlow := map[string]bool{
 			"argon2id": true, "34000": true,
-			"yescrypt": true,
-			"8900":     true, "scrypt": true,
+			"yescrypt": true, "gost-yescrypt": true,
+			"8900": true, "scrypt": true,
 		}
 		if bufSlow[hashFunc] {
 			readBufferSize = numGoroutines + 8*2
