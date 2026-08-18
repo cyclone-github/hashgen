@@ -31,6 +31,7 @@ import (
 	"github.com/cyclone-github/base58"
 	"github.com/cyclone-github/md6"
 	"github.com/ebfe/keccak" // keccak 224/384
+	"github.com/emmansun/gmsm/sm3"
 	"github.com/openwall/yescrypt-go"
 	"github.com/tarantool/go-gostcrypto/streebog"
 	"golang.org/x/crypto/argon2"
@@ -67,14 +68,15 @@ v1.3.0; 2026-04-11
 	compiled with Go v1.26.2
 v1.3.1; 2026-04-13
 	add modes: MD6-128, MD6-224, MD6-256, MD6-384, MD6-512
-v1.3.2; 2026-08-17
+v1.3.2; 2026-08-18
 	add mode: gost-yescrypt
 	add mode: SSHA -m 111
 	add mode: sha1crypt -m 15100
+	add mode: sm3crypt -m 35100
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.3.2; 2026-08-17\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.3.2; 2026-08-18\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -165,6 +167,7 @@ func helpFunc() {
 		"1740\t\t(hashcat compatible sha512 $salt.utf16le($pass))\n" +
 		"1770\t\t(hashcat compatible sha512 utf16le($pass))\n" +
 		"sha512crypt\t1800 (Linux shadow $6$)\n" +
+		"sm3crypt\t35100 (Unix $sm3$)\n" +
 		"50\t\t(hashcat compatible HMAC-MD5 key = $pass)\n" +
 		"60\t\t(hashcat compatible HMAC-MD5 key = $salt)\n" +
 		"150\t\t(hashcat compatible HMAC-SHA1 key = $pass)\n" +
@@ -994,6 +997,131 @@ func sha1crypt(password []byte, saltRaw []byte) string {
 	return string(out)
 }
 
+// sm3crypt -m 35100
+func sm3crypt(password []byte, saltRaw []byte) string {
+	const magic = "$sm3$"
+	const rounds = 5000
+	const saltLen = 16
+
+	var salt []byte
+	if len(saltRaw) > 0 {
+		n := len(saltRaw)
+		if n > saltLen {
+			n = saltLen
+		}
+		salt = make([]byte, n)
+		copy(salt, saltRaw[:n])
+	} else {
+		salt = make([]byte, saltLen)
+		var rb [saltLen]byte
+		if !readRand(rb[:]) {
+			return ""
+		}
+		for i := 0; i < saltLen; i++ {
+			salt[i] = cryptBase64[rb[i]&0x3f]
+		}
+	}
+
+	a := sm3.New()
+	a.Write(password)
+	a.Write(salt)
+
+	alt := sm3.New()
+	alt.Write(password)
+	alt.Write(salt)
+	alt.Write(password)
+	altSum := alt.Sum(nil)
+
+	pwLen := len(password)
+	for n := pwLen; n > 0; n -= sm3.Size {
+		if n > sm3.Size {
+			a.Write(altSum)
+		} else {
+			a.Write(altSum[:n])
+		}
+	}
+
+	for n := pwLen; n > 0; n >>= 1 {
+		if (n & 1) == 1 {
+			a.Write(altSum)
+		} else {
+			a.Write(password)
+		}
+	}
+	adigest := a.Sum(nil)
+
+	dp := sm3.New()
+	for i := 0; i < pwLen; i++ {
+		dp.Write(password)
+	}
+	dpSum := dp.Sum(nil)
+	P := make([]byte, pwLen)
+	for i := 0; i < pwLen; i += sm3.Size {
+		end := i + sm3.Size
+		if end > pwLen {
+			end = pwLen
+		}
+		copy(P[i:end], dpSum[:end-i])
+	}
+
+	ds := sm3.New()
+	for i := 0; i < 16+int(adigest[0]); i++ {
+		ds.Write(salt)
+	}
+	dsSum := ds.Sum(nil)
+	S := make([]byte, len(salt))
+	copy(S, dsSum[:len(salt)])
+
+	digest := adigest
+	for i := 0; i < rounds; i++ {
+		c := sm3.New()
+		if (i & 1) == 1 {
+			c.Write(P)
+		} else {
+			c.Write(digest)
+		}
+		if i%3 != 0 {
+			c.Write(S)
+		}
+		if i%7 != 0 {
+			c.Write(P)
+		}
+		if (i & 1) == 1 {
+			c.Write(digest)
+		} else {
+			c.Write(P)
+		}
+		digest = c.Sum(nil)
+	}
+
+	out := make([]byte, 0, len(magic)+len(salt)+1+43)
+	out = append(out, magic...)
+	out = append(out, salt...)
+	out = append(out, '$')
+
+	enc := func(b2, b1, b0 byte, n int) {
+		v := uint32(b2)<<16 | uint32(b1)<<8 | uint32(b0)
+		for j := 0; j < n; j++ {
+			out = append(out, cryptBase64[v&0x3f])
+			v >>= 6
+		}
+	}
+
+	enc(digest[0], digest[10], digest[20], 4)
+	enc(digest[21], digest[1], digest[11], 4)
+	enc(digest[12], digest[22], digest[2], 4)
+	enc(digest[3], digest[13], digest[23], 4)
+	enc(digest[24], digest[4], digest[14], 4)
+	enc(digest[15], digest[25], digest[5], 4)
+	enc(digest[6], digest[16], digest[26], 4)
+	enc(digest[27], digest[7], digest[17], 4)
+	enc(digest[18], digest[28], digest[8], 4)
+	enc(digest[9], digest[19], digest[29], 4)
+	enc(0, digest[31], digest[30], 3)
+
+	return string(out)
+}
+
 // WordPress bcrypt: $wp$2y$10$<22-salt><31-hash>
 // bcrypt(base64(HMAC-SHA384(key="wp-sha384",$password)))
 func wpbcrypt(password []byte, cost int) string {
@@ -1148,7 +1276,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 			"8900", "scrypt",
 			"10900", "pbkdf2-sha256", "11900", "pbkdf2-md5", "12000", "pbkdf2-sha1", "12100", "pbkdf2-sha512",
 			"bcrypt", "3200", "wpbcrypt",
-			"md5crypt", "500", "sha1crypt", "15100", "sha256crypt", "7400", "sha512crypt", "1800",
+			"md5crypt", "500", "sha1crypt", "15100", "sha256crypt", "7400", "sha512crypt", "1800", "sm3crypt", "35100",
 			"phpass", "phpbb3", "400":
 			return "", true
 		}
@@ -2035,6 +2163,10 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 	case "sha1crypt", "15100":
 		return sha1crypt(data, nil), true
 
+	// sm3crypt -m 35100
+	case "sm3crypt", "35100":
+		return sm3crypt(data, nil), true
+
 	// sha256crypt ($5$) -m 7400
 	case "sha256crypt", "7400":
 		return sha256crypt(data), true
@@ -2103,6 +2235,7 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 			"phpass": true, "phpbb3": true, "400": true,
 			"md5crypt": true, "500": true,
 			"sha1crypt": true, "15100": true,
+			"sm3crypt": true, "35100": true,
 			"sha256crypt": true, "7400": true,
 			"sha512crypt": true, "1800": true,
 			"10900": true, "pbkdf2-sha256": true,

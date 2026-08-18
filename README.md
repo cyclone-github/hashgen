@@ -181,6 +181,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | sha1crypt | 15100 (`NetBSD/Juniper SHA1 crypt`) |
 | sha256crypt | 7400 (`Linux shadow $5$`) |
 | sha512crypt | 1800 (`Linux shadow $6$`) |
+| sm3crypt | 35100 (`Unix $sm3$`) |
 | phpass | 400 (`PHP/WordPress $P$/phpBB3 $H$`) |
 | gost-yescrypt | (`Linux shadow $gy$`) |
 | yescrypt | (`Linux shadow $y$`) |

@@ -1,8 +1,9 @@
-### v1.3.2; 2026-08-17
+### v1.3.2; 2026-08-18
 ```
 add mode: gost-yescrypt
 add mode: SSHA -m 111
 add mode: sha1crypt -m 15100
+add mode: sm3crypt -m 35100
 ```
 ### v1.3.1; 2026-04-13
 ```
