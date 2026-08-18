@@ -8,6 +8,8 @@ add mode: cmiyc (KoreLogic CMIYC 2026 contest algo)
 add modes: Streebog/GOST 2012 -m 11700, 11750, 11760, 11800, 11850, 11860
 add modes: SHA-384 UTF-16LE -m 10830, 10840, 10870
 add modes: LDAP SHA/SSHA -m 101, 1411, 1711
+add modes: -m 3500, 4300, 4400, 4700, 18500, 18501, 20800, 32800, 34400, 34500, 35900
+refactor modes: -m 2600 and 4500
 ```
 ### v1.3.1; 2026-04-13
 ```

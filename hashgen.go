@@ -77,6 +77,8 @@ v1.3.2; 2026-08-18
 	add modes: Streebog/GOST 2012 -m 11700, 11750, 11760, 11800, 11850, 11860
 	add modes: SHA-384 UTF-16LE -m 10830, 10840, 10870
 	add modes: LDAP SHA/SSHA -m 101, 1411, 1711
+	add modes: -m 3500, 4300, 4400, 4700, 18500, 18501, 20800, 32800, 34400, 34500, 35900
+	refactor modes: -m 2600 and 4500
 */
 
 func versionFunc() {
@@ -130,6 +132,10 @@ func helpFunc() {
 		"40\t\t(hashcat compatible md5 $salt.utf16le($pass))\n" +
 		"70\t\t(hashcat compatible md5 utf16le($pass))\n" +
 		"md5md5\t\t2600\n" +
+		"3500\t\t(hashcat compatible md5(md5(md5($pass))))\n" +
+		"4300\t\t(hashcat compatible md5(strtoupper(md5($pass))))\n" +
+		"4400\t\t(hashcat compatible md5(sha1($pass)))\n" +
+		"32800\t\t(hashcat compatible md5(sha1(md5($pass))))\n" +
 		"md5crypt\t500 (Linux shadow $1$)\n" +
 		"md6-128\n" +
 		"md6-224\n" +
@@ -145,6 +151,9 @@ func helpFunc() {
 		"sha1\t\t100\n" +
 		"ldap-sha\t101 (Netscape LDAP {SHA})\n" +
 		"sha1sha1\t4500\n" +
+		"4700\t\t(hashcat compatible sha1(md5($pass)))\n" +
+		"18500\t\t(hashcat compatible sha1(md5(md5($pass))))\n" +
+		"18501\t\t(sha1(md5(sha1($pass))))\n" +
 		"sha1passsalt\t110\n" +
 		"sha1saltpass\t120\n" +
 		"sha1crypt\t15100 (NetBSD/Juniper SHA1 crypt)\n" +
@@ -155,9 +164,13 @@ func helpFunc() {
 		"sha224\t\t1300\n" +
 		"sha224passsalt\t1310\n" +
 		"sha224saltpass\t1320\n" +
+		"34400\t\t(hashcat compatible sha224(sha224($pass)))\n" +
+		"34500\t\t(hashcat compatible sha224(sha1($pass)))\n" +
 		"sha256\t\t1400\n" +
 		"sha256passsalt\t1410\n" +
 		"sha256saltpass\t1420\n" +
+		"20800\t\t(hashcat compatible sha256(md5($pass)))\n" +
+		"35900\t\t(sha256(sha1($pass)))\n" +
 		"ssha256\t\t1411 (LDAP {SSHA256})\n" +
 		"1430\t\t(hashcat compatible sha256 utf16le($pass).$salt)\n" +
 		"1440\t\t(hashcat compatible sha256 $salt.utf16le($pass))\n" +
@@ -305,6 +318,35 @@ func utf16LEPassStrict(data []byte) ([]byte, bool) {
 		out[2*i+1] = byte(c >> 8)
 	}
 	return out, true
+}
+
+// nested hash modes pass lowercase hex text between digest stages
+func md5HexBytes(data []byte) [32]byte {
+	sum := md5.Sum(data)
+	var out [32]byte
+	hex.Encode(out[:], sum[:])
+	return out
+}
+
+func sha1HexBytes(data []byte) [40]byte {
+	sum := sha1.Sum(data)
+	var out [40]byte
+	hex.Encode(out[:], sum[:])
+	return out
+}
+
+func sha224HexBytes(data []byte) [56]byte {
+	sum := sha256.Sum224(data)
+	var out [56]byte
+	hex.Encode(out[:], sum[:])
+	return out
+}
+
+func sha256HexBytes(data []byte) [64]byte {
+	sum := sha256.Sum256(data)
+	var out [64]byte
+	hex.Encode(out[:], sum[:])
+	return out
 }
 
 // LDAP SHA/SSHA family -m 101 / 111 / 1411 / 1711
@@ -1649,11 +1691,40 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 
 	// -m 2600 md5(md5($pass))
 	case "md5md5", "2600":
-		inner := md5.Sum(data)
-		var innerHex [32]byte
-		hex.Encode(innerHex[:], inner[:])
-		outer := md5.Sum(innerHex[:])
-		return hex.EncodeToString(outer[:]), true
+		inner := md5HexBytes(data)
+		outer := md5HexBytes(inner[:])
+		return string(outer[:]), true
+
+	// -m 3500 md5(md5(md5($pass)))
+	case "3500":
+		inner := md5HexBytes(data)
+		middle := md5HexBytes(inner[:])
+		outer := md5HexBytes(middle[:])
+		return string(outer[:]), true
+
+	// -m 4300 md5(strtoupper(md5($pass)))
+	case "4300":
+		inner := md5HexBytes(data)
+		for i := range inner {
+			if inner[i] >= 'a' && inner[i] <= 'f' {
+				inner[i] -= 'a' - 'A'
+			}
+		}
+		outer := md5HexBytes(inner[:])
+		return string(outer[:]), true
+
+	// -m 4400 md5(sha1($pass))
+	case "4400":
+		inner := sha1HexBytes(data)
+		outer := md5HexBytes(inner[:])
+		return string(outer[:]), true
+
+	// -m 32800 md5(sha1(md5($pass)))
+	case "32800":
+		inner := md5HexBytes(data)
+		middle := sha1HexBytes(inner[:])
+		outer := md5HexBytes(middle[:])
+		return string(outer[:]), true
 
 	// MD6
 
@@ -1753,11 +1824,29 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 
 	// -m 4500 sha1(sha1($pass))
 	case "sha1sha1", "4500":
-		inner := sha1.Sum(data)
-		var innerHex [40]byte
-		hex.Encode(innerHex[:], inner[:])
-		outer := sha1.Sum(innerHex[:])
-		return hex.EncodeToString(outer[:]), true
+		inner := sha1HexBytes(data)
+		outer := sha1HexBytes(inner[:])
+		return string(outer[:]), true
+
+	// -m 4700 sha1(md5($pass))
+	case "4700":
+		inner := md5HexBytes(data)
+		outer := sha1HexBytes(inner[:])
+		return string(outer[:]), true
+
+	// -m 18500 sha1(md5(md5($pass)))
+	case "18500":
+		inner := md5HexBytes(data)
+		middle := md5HexBytes(inner[:])
+		outer := sha1HexBytes(middle[:])
+		return string(outer[:]), true
+
+	// -m 18501 sha1(md5(sha1($pass)))
+	case "18501":
+		inner := sha1HexBytes(data)
+		middle := md5HexBytes(inner[:])
+		outer := sha1HexBytes(middle[:])
+		return string(outer[:]), true
 
 	// SHA2
 
@@ -1790,10 +1879,34 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		copy(out[57:], salt)
 		return string(out), true
 
+	// -m 34400 sha224(sha224($pass))
+	case "34400":
+		inner := sha224HexBytes(data)
+		outer := sha224HexBytes(inner[:])
+		return string(outer[:]), true
+
+	// -m 34500 sha224(sha1($pass))
+	case "34500":
+		inner := sha1HexBytes(data)
+		outer := sha224HexBytes(inner[:])
+		return string(outer[:]), true
+
 	// sha2-256 -m 1400
 	case "sha2-256", "sha256", "1400":
 		h := sha256.Sum256(data)
 		return hex.EncodeToString(h[:]), true
+
+	// -m 20800 sha256(md5($pass))
+	case "20800":
+		inner := md5HexBytes(data)
+		outer := sha256HexBytes(inner[:])
+		return string(outer[:]), true
+
+	// -m 35900 sha256(sha1($pass))
+	case "35900":
+		inner := sha1HexBytes(data)
+		outer := sha256HexBytes(inner[:])
+		return string(outer[:]), true
 
 	// -m 1410 sha256(pass.salt), -m 1420 sha256(salt.pass)
 	case "1410", "sha256passsalt", "1420", "sha256saltpass":

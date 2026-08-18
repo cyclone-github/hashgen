@@ -87,6 +87,10 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | md4 | 900 |
 | md5 | 0 |
 | md5md5 | 2600 |
+| 3500 | (hashcat compatible md5(md5(md5($pass)))) |
+| 4300 | (hashcat compatible md5(strtoupper(md5($pass)))) |
+| 4400 | (hashcat compatible md5(sha1($pass))) |
+| 32800 | (hashcat compatible md5(sha1(md5($pass)))) |
 | halfmd5 | 5100 |
 | md5passsalt | 10 |
 | md5saltpass | 20 |
@@ -106,6 +110,9 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | sha1 | 100 |
 | ldap-sha | 101 (Netscape LDAP {SHA}) |
 | sha1sha1 | 4500 |
+| 4700 | (hashcat compatible sha1(md5($pass))) |
+| 18500 | (hashcat compatible sha1(md5(md5($pass)))) |
+| 18501 | (sha1(md5(sha1($pass)))) |
 | sha1passsalt | 110 |
 | sha1saltpass | 120 |
 | ssha | 111 (NSLDAPS SSHA-1) |
@@ -119,9 +126,13 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | sha224 | 1300 |
 | sha224passsalt | 1310 |
 | sha224saltpass | 1320 |
+| 34400 | (hashcat compatible sha224(sha224($pass))) |
+| 34500 | (hashcat compatible sha224(sha1($pass))) |
 | sha256 | 1400 |
 | sha256passsalt | 1410 |
 | sha256saltpass | 1420 |
+| 20800 | (hashcat compatible sha256(md5($pass))) |
+| 35900 | (sha256(sha1($pass))) |
 | ssha256 | 1411 (LDAP {SSHA256}) |
 | 1430 | (hashcat compatible sha256 utf16le($pass).$salt) |
 | 1440 | (hashcat compatible sha256 $salt.utf16le($pass)) |
