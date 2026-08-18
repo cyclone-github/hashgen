@@ -4,6 +4,7 @@ add mode: gost-yescrypt
 add mode: SSHA -m 111
 add mode: sha1crypt -m 15100
 add mode: sm3crypt -m 35100
+add mode: cmiyc (KoreLogic CMIYC 2026 contest algo)
 ```
 ### v1.3.1; 2026-04-13
 ```

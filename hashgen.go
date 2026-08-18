@@ -73,6 +73,7 @@ v1.3.2; 2026-08-18
 	add mode: SSHA -m 111
 	add mode: sha1crypt -m 15100
 	add mode: sm3crypt -m 35100
+	add mode: cmiyc (KoreLogic CMIYC 2026 contest algo)
 */
 
 func versionFunc() {
@@ -168,6 +169,7 @@ func helpFunc() {
 		"1770\t\t(hashcat compatible sha512 utf16le($pass))\n" +
 		"sha512crypt\t1800 (Linux shadow $6$)\n" +
 		"sm3crypt\t35100 (Unix $sm3$)\n" +
+		"cmiyc\t\t(KoreLogic CMIYC 2026 contest algo)\n" +
 		"50\t\t(hashcat compatible HMAC-MD5 key = $pass)\n" +
 		"60\t\t(hashcat compatible HMAC-MD5 key = $salt)\n" +
 		"150\t\t(hashcat compatible HMAC-SHA1 key = $pass)\n" +
@@ -1122,6 +1124,90 @@ func sm3crypt(password []byte, saltRaw []byte) string {
 	return string(out)
 }
 
+const (
+	cmiycRounds  = uint32(4)
+	cmiycMemLog  = uint32(16)
+	cmiycMemSize = 64 << cmiycMemLog
+)
+
+var cmiycMemPool = sync.Pool{New: func() any { return make([]byte, cmiycMemSize) }}
+
+// cmiyc 2026 contest algo - memory-hard SHA-512 KDF
+func cmiyc(password []byte, saltRaw []byte) string {
+	var salt [16]byte
+	if len(saltRaw) >= len(salt) {
+		copy(salt[:], saltRaw[:len(salt)])
+	} else if !readRand(salt[:]) {
+		return ""
+	}
+
+	mem := cmiycMemPool.Get().([]byte)
+	defer cmiycMemPool.Put(mem)
+
+	mac := hmac.New(sha512.New, salt[:])
+	_, _ = mac.Write(password)
+	var params [8]byte
+	binary.LittleEndian.PutUint32(params[:4], cmiycRounds)
+	binary.LittleEndian.PutUint32(params[4:], cmiycMemLog)
+	_, _ = mac.Write(params[:])
+	seed := mac.Sum(nil)
+
+	const n = 1 << cmiycMemLog
+	const mask = n - 1
+
+	var fill [82]byte
+	copy(fill[:64], seed)
+	copy(fill[64:74], "cmiyc-fill")
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			copy(fill[:64], mem[(i-1)*64:i*64])
+		}
+		binary.LittleEndian.PutUint64(fill[74:], uint64(i))
+		sum := sha512.Sum512(fill[:])
+		copy(mem[i*64:(i+1)*64], sum[:])
+	}
+
+	var mix [145]byte
+	for r := uint64(1); r <= uint64(cmiycRounds); r++ {
+		binary.LittleEndian.PutUint64(mix[128:136], r)
+		mix[144] = 'A'
+		for i := 0; i < n; i++ {
+			off := i * 64
+			j := int(binary.LittleEndian.Uint64(mem[off:off+8])&mask) * 64
+			copy(mix[:64], mem[off:off+64])
+			copy(mix[64:128], mem[j:j+64])
+			binary.LittleEndian.PutUint64(mix[136:144], uint64(i))
+			sum := sha512.Sum512(mix[:])
+			copy(mem[off:off+64], sum[:])
+		}
+
+		mix[144] = 'B'
+		for i := n; i > 0; i-- {
+			idx := i - 1
+			off := idx * 64
+			j := int(binary.LittleEndian.Uint64(mem[off+8:off+16])&mask) * 64
+			copy(mix[:64], mem[off:off+64])
+			copy(mix[64:128], mem[j:j+64])
+			binary.LittleEndian.PutUint64(mix[136:144], uint64(idx))
+			sum := sha512.Sum512(mix[:])
+			copy(mem[off:off+64], sum[:])
+		}
+	}
+
+	var x [64]byte
+	for i := 0; i < n; i++ {
+		off := i * 64
+		for j := range x {
+			x[j] ^= mem[off+j]
+		}
+	}
+	final := sha512.Sum512(x[:])
+
+	enc := base64.RawURLEncoding
+	return fmt.Sprintf("$cmiyc$2026$%d$%d$%s$%s",
+		cmiycRounds, cmiycMemLog, enc.EncodeToString(salt[:]), enc.EncodeToString(final[:32]))
+}
+
 // WordPress bcrypt: $wp$2y$10$<22-salt><31-hash>
 // bcrypt(base64(HMAC-SHA384(key="wp-sha384",$password)))
 func wpbcrypt(password []byte, cost int) string {
@@ -1276,7 +1362,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 			"8900", "scrypt",
 			"10900", "pbkdf2-sha256", "11900", "pbkdf2-md5", "12000", "pbkdf2-sha1", "12100", "pbkdf2-sha512",
 			"bcrypt", "3200", "wpbcrypt",
-			"md5crypt", "500", "sha1crypt", "15100", "sha256crypt", "7400", "sha512crypt", "1800", "sm3crypt", "35100",
+			"md5crypt", "500", "sha1crypt", "15100", "sha256crypt", "7400", "sha512crypt", "1800", "sm3crypt", "35100", "cmiyc",
 			"phpass", "phpbb3", "400":
 			return "", true
 		}
@@ -2167,6 +2253,10 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 	case "sm3crypt", "35100":
 		return sm3crypt(data, nil), true
 
+	// CMIYC 2026
+	case "cmiyc":
+		return cmiyc(data, nil), true
+
 	// sha256crypt ($5$) -m 7400
 	case "sha256crypt", "7400":
 		return sha256crypt(data), true
@@ -2259,12 +2349,13 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 		}
 	}
 
-	// lower read buffer for argon2id, yescrypt, gost-yescrypt, scrypt
+	// lower read buffer for argon2id, yescrypt, gost-yescrypt, scrypt, cmiyc
 	{
 		bufSlow := map[string]bool{
 			"argon2id": true, "34000": true,
 			"yescrypt": true, "gost-yescrypt": true,
-			"8900": true, "scrypt": true,
+			"cmiyc": true,
+			"8900":  true, "scrypt": true,
 		}
 		if bufSlow[hashFunc] {
 			readBufferSize = numGoroutines + 8*2
