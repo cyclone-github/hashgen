@@ -201,7 +201,11 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | **`Crypt / KDF`** | |
 | argon2id | 34000 |
 | bcrypt | 3200 |
-| wpbcrypt | (WordPress bcrypt-HMAC-SHA384) |
+| bcryptmd5 | 25600 |
+| bcryptsha1 | 25800 |
+| bcryptsha512 | 28400 |
+| bcryptsha256 | 30600 |
+| wpbcrypt | 35500 (`WordPress bcrypt-HMAC-SHA384`) |
 | md5crypt | 500 (`Linux shadow $1$`) |
 | sha1crypt | 15100 (`NetBSD/Juniper SHA1 crypt`) |
 | sha256crypt | 7400 (`Linux shadow $5$`) |
