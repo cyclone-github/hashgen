@@ -1,3 +1,8 @@
+### v1.3.2; 2026-08-17
+```
+add mode: gost-yescrypt
+add mode: SSHA -m 111
+```
 ### v1.3.1; 2026-04-13
 ```
 add modes: MD6-128, MD6-224, MD6-256, MD6-384, MD6-512

@@ -69,6 +69,7 @@ v1.3.1; 2026-04-13
 	add modes: MD6-128, MD6-224, MD6-256, MD6-384, MD6-512
 v1.3.2; 2026-08-17
 	add mode: gost-yescrypt
+	add mode: SSHA -m 111
 */
 
 func versionFunc() {
@@ -138,6 +139,7 @@ func helpFunc() {
 		"sha1sha1\t4500\n" +
 		"sha1passsalt\t110\n" +
 		"sha1saltpass\t120\n" +
+		"ssha\t\t111 (NSLDAPS SSHA-1)\n" +
 		"130\t\t(hashcat compatible sha1 utf16le($pass).$salt)\n" +
 		"140\t\t(hashcat compatible sha1 $salt.utf16le($pass))\n" +
 		"170\t\t(hashcat compatible sha1 utf16le($pass))\n" +
@@ -1307,6 +1309,24 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 	case "sha1", "100":
 		h := sha1.Sum(data)
 		return hex.EncodeToString(h[:]), true
+
+	// ssha -m 111
+	case "ssha", "111":
+		var salt [8]byte
+		if !readRand(salt[:]) {
+			return "", true
+		}
+
+		h := sha1.New()
+		_, _ = h.Write(data)
+		_, _ = h.Write(salt[:])
+		digest := h.Sum(nil)
+
+		payload := make([]byte, 0, len(digest)+len(salt))
+		payload = append(payload, digest...)
+		payload = append(payload, salt[:]...)
+
+		return "{SSHA}" + base64.StdEncoding.EncodeToString(payload), true
 
 	// -m 110 sha1(pass.salt), -m 120 sha1(salt.pass)
 	case "110", "sha1passsalt", "120", "sha1saltpass":
