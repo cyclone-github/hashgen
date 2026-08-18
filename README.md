@@ -129,6 +129,9 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | sha384 | 10800 |
 | sha384passsalt | 10810 |
 | sha384saltpass | 10820 |
+| 10830 | (hashcat compatible sha384 utf16le($pass).$salt) |
+| 10840 | (hashcat compatible sha384 $salt.utf16le($pass)) |
+| 10870 | (hashcat compatible sha384 utf16le($pass)) |
 | sha512 | 1700 |
 | sha512passsalt | 1710 |
 | sha512saltpass | 1720 |

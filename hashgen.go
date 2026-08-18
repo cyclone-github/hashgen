@@ -75,6 +75,7 @@ v1.3.2; 2026-08-18
 	add mode: sm3crypt -m 35100
 	add mode: cmiyc (KoreLogic CMIYC 2026 contest algo)
 	add modes: Streebog/GOST 2012 -m 11700, 11750, 11760, 11800, 11850, 11860
+	add modes: SHA-384 UTF-16LE -m 10830, 10840, 10870
 */
 
 func versionFunc() {
@@ -162,6 +163,9 @@ func helpFunc() {
 		"sha384\t\t10800\n" +
 		"sha384passsalt\t10810\n" +
 		"sha384saltpass\t10820\n" +
+		"10830\t\t(hashcat compatible sha384 utf16le($pass).$salt)\n" +
+		"10840\t\t(hashcat compatible sha384 $salt.utf16le($pass))\n" +
+		"10870\t\t(hashcat compatible sha384 utf16le($pass))\n" +
 		"sha512\t\t1700\n" +
 		"sha512passsalt\t1710\n" +
 		"sha512saltpass\t1720\n" +
@@ -297,6 +301,44 @@ func utf16LEPassStrict(data []byte) ([]byte, bool) {
 		out[2*i+1] = byte(c >> 8)
 	}
 	return out, true
+}
+
+// sha384 UTF-16LE family -m 10830 / 10840 / 10870
+func sha384UTF16(password []byte, mode string, saltRaw []byte) string {
+	pwU16, ok := utf16LEPassStrict(password)
+	if !ok {
+		return ""
+	}
+
+	if mode == "10870" || mode == "sha384utf16le" {
+		h := sha512.New384()
+		h.Write(pwU16)
+		return hex.EncodeToString(h.Sum(nil))
+	}
+
+	salt := saltRaw
+	if salt == nil {
+		salt = make([]byte, 16)
+		if !fillSaltHex8(salt) {
+			return ""
+		}
+	}
+
+	h := sha512.New384()
+	if mode == "10840" || mode == "sha384utf16saltpass" {
+		h.Write(salt)
+		h.Write(pwU16)
+	} else {
+		h.Write(pwU16)
+		h.Write(salt)
+	}
+
+	sum := h.Sum(nil)
+	out := make([]byte, 96+1+len(salt))
+	hex.Encode(out[:96], sum)
+	out[96] = ':'
+	copy(out[97:], salt)
+	return string(out)
 }
 
 // hashcat hmac line as hex(digest):salt
@@ -1802,6 +1844,10 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		out[96] = ':'
 		copy(out[97:], salt)
 		return string(out), true
+
+	// sha384 UTF-16LE - hashcat -m 10830 / 10840 / 10870
+	case "10830", "sha384utf16passsalt", "10840", "sha384utf16saltpass", "10870", "sha384utf16le":
+		return sha384UTF16(data, hashFunc, nil), true
 
 	// sha2-512 -m 1700
 	case "sha2-512", "sha512", "1700":
