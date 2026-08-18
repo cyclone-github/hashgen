@@ -180,6 +180,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | sha256crypt | 7400 (`Linux shadow $5$`) |
 | sha512crypt | 1800 (`Linux shadow $6$`) |
 | phpass | 400 (`PHP/WordPress $P$/phpBB3 $H$`) |
+| gost-yescrypt | (`Linux shadow $gy$`) |
 | yescrypt | (`Linux shadow $y$`) |
 | scrypt | 8900 |
 | 10900 | (hashcat compatible PBKDF2-HMAC-SHA256) |
