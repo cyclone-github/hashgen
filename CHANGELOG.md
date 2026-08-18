@@ -7,6 +7,7 @@ add mode: sm3crypt -m 35100
 add mode: cmiyc (KoreLogic CMIYC 2026 contest algo)
 add modes: Streebog/GOST 2012 -m 11700, 11750, 11760, 11800, 11850, 11860
 add modes: SHA-384 UTF-16LE -m 10830, 10840, 10870
+add modes: LDAP SHA/SSHA -m 101, 1411, 1711
 ```
 ### v1.3.1; 2026-04-13
 ```

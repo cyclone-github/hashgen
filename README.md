@@ -104,6 +104,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | md6-512 | |
 | **`SHA1`** | |
 | sha1 | 100 |
+| ldap-sha | 101 (Netscape LDAP {SHA}) |
 | sha1sha1 | 4500 |
 | sha1passsalt | 110 |
 | sha1saltpass | 120 |
@@ -121,6 +122,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | sha256 | 1400 |
 | sha256passsalt | 1410 |
 | sha256saltpass | 1420 |
+| ssha256 | 1411 (LDAP {SSHA256}) |
 | 1430 | (hashcat compatible sha256 utf16le($pass).$salt) |
 | 1440 | (hashcat compatible sha256 $salt.utf16le($pass)) |
 | 1450 | (hashcat compatible HMAC-SHA256 key = $pass) |
@@ -135,6 +137,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | sha512 | 1700 |
 | sha512passsalt | 1710 |
 | sha512saltpass | 1720 |
+| ssha512 | 1711 (LDAP {SSHA512}) |
 | 1730 | (hashcat compatible sha512 utf16le($pass).$salt) |
 | 1740 | (hashcat compatible sha512 $salt.utf16le($pass)) |
 | 1750 | (hashcat compatible HMAC-SHA512 key = $pass) |
