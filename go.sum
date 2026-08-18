@@ -4,6 +4,8 @@ github.com/cyclone-github/md6 v0.4.13 h1:qxTCyq+ZRaHLigNi8FsE8bgF82Z4OM8iwCWbVPM
 github.com/cyclone-github/md6 v0.4.13/go.mod h1:yKL7IkZQ5eBFd5qEp9SGbEiCE0RThq9AdPD4bFinsqA=
 github.com/ebfe/keccak v0.0.0-20150115210727-5cc570678d1b h1:BMyjwV6Fal/Ffphi4dJfulSxMeDl0xFS2vs5QLr6rsI=
 github.com/ebfe/keccak v0.0.0-20150115210727-5cc570678d1b/go.mod h1:fnviDXB7GJWiSUI9thIXmk9QKM8Rhj1JV/LcMRzkiVA=
+github.com/emmansun/gmsm v0.44.1 h1:zDTkdtLWFG0vCbhPV+k9pte14tix/eK71At9Iai9fP4=
+github.com/emmansun/gmsm v0.44.1/go.mod h1:p6RIUta0/KboFHrOxr1x8q+pd8RZtdaTO7XNp0RmMQM=
 github.com/openwall/yescrypt-go v1.0.0 h1:jsGk48zkFvtUjGVOhYPGh+CS595JmTRcKnpggK2AON4=
 github.com/openwall/yescrypt-go v1.0.0/go.mod h1:e6CWtFizUEOUttaOjeVMiv1lJaJie3mfOtLJ9CCD6sA=
 github.com/tarantool/go-gostcrypto v0.1.0 h1:sGjZil1nfXzxvBU4TOIZErTXcvCuCLH/pZnwfXr9uaY=
