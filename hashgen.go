@@ -70,6 +70,7 @@ v1.3.1; 2026-04-13
 v1.3.2; 2026-08-17
 	add mode: gost-yescrypt
 	add mode: SSHA -m 111
+	add mode: sha1crypt -m 15100
 */
 
 func versionFunc() {
@@ -139,6 +140,7 @@ func helpFunc() {
 		"sha1sha1\t4500\n" +
 		"sha1passsalt\t110\n" +
 		"sha1saltpass\t120\n" +
+		"sha1crypt\t15100 (NetBSD/Juniper SHA1 crypt)\n" +
 		"ssha\t\t111 (NSLDAPS SSHA-1)\n" +
 		"130\t\t(hashcat compatible sha1 utf16le($pass).$salt)\n" +
 		"140\t\t(hashcat compatible sha1 $salt.utf16le($pass))\n" +
@@ -937,6 +939,61 @@ func sha512crypt(password []byte) string {
 	return string(buf)
 }
 
+// sha1crypt -m 15100
+func sha1crypt(password []byte, saltRaw []byte) string {
+	const rounds = 20000 // TODO use -i to set iterations
+	const saltLen = 8
+
+	var salt [saltLen]byte
+	if len(saltRaw) >= saltLen {
+		copy(salt[:], saltRaw[:saltLen])
+	} else {
+		var rb [saltLen]byte
+		if !readRand(rb[:]) {
+			return ""
+		}
+		for i := 0; i < saltLen; i++ {
+			salt[i] = cryptBase64[rb[i]&0x3f]
+		}
+	}
+
+	msg := make([]byte, 0, saltLen+len("$sha1$")+5)
+	msg = append(msg, salt[:]...)
+	msg = append(msg, "$sha1$20000"...)
+
+	mac := hmac.New(sha1.New, password)
+	_, _ = mac.Write(msg)
+
+	var digest [sha1.Size]byte
+	_ = mac.Sum(digest[:0])
+
+	for i := 1; i < rounds; i++ {
+		mac.Reset()
+		_, _ = mac.Write(digest[:])
+		_ = mac.Sum(digest[:0])
+	}
+
+	enc := func(dst *[]byte, b2, b1, b0 byte) {
+		v := uint32(b2)<<16 | uint32(b1)<<8 | uint32(b0)
+		for i := 0; i < 4; i++ {
+			*dst = append(*dst, cryptBase64[v&0x3f])
+			v >>= 6
+		}
+	}
+
+	out := make([]byte, 0, len("$sha1$20000$")+saltLen+1+28)
+	out = append(out, "$sha1$20000$"...)
+	out = append(out, salt[:]...)
+	out = append(out, '$')
+
+	for i := 0; i < 18; i += 3 {
+		enc(&out, digest[i], digest[i+1], digest[i+2])
+	}
+	enc(&out, digest[18], digest[19], 0)
+
+	return string(out)
+}
+
 // WordPress bcrypt: $wp$2y$10$<22-salt><31-hash>
 // bcrypt(base64(HMAC-SHA384(key="wp-sha384",$password)))
 func wpbcrypt(password []byte, cost int) string {
@@ -1091,7 +1148,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 			"8900", "scrypt",
 			"10900", "pbkdf2-sha256", "11900", "pbkdf2-md5", "12000", "pbkdf2-sha1", "12100", "pbkdf2-sha512",
 			"bcrypt", "3200", "wpbcrypt",
-			"md5crypt", "500", "sha256crypt", "7400", "sha512crypt", "1800",
+			"md5crypt", "500", "sha1crypt", "15100", "sha256crypt", "7400", "sha512crypt", "1800",
 			"phpass", "phpbb3", "400":
 			return "", true
 		}
@@ -1974,6 +2031,10 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 	case "md5crypt", "500":
 		return md5crypt(data), true
 
+	// sha1crypt -m 15100
+	case "sha1crypt", "15100":
+		return sha1crypt(data, nil), true
+
 	// sha256crypt ($5$) -m 7400
 	case "sha256crypt", "7400":
 		return sha256crypt(data), true
@@ -2041,6 +2102,7 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 		bufFixed := map[string]bool{
 			"phpass": true, "phpbb3": true, "400": true,
 			"md5crypt": true, "500": true,
+			"sha1crypt": true, "15100": true,
 			"sha256crypt": true, "7400": true,
 			"sha512crypt": true, "1800": true,
 			"10900": true, "pbkdf2-sha256": true,
