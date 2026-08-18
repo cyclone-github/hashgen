@@ -46,7 +46,7 @@ import (
 )
 
 /*
-hashgen is a CLI hash generator which can be cross compiled for Linux, Raspberry Pi, Windows & Mac
+hashgen is a CLI hash generator which can be cross-compiled for Linux, Raspberry Pi, Windows & Mac
 https://github.com/cyclone-github/hashgen
 written by cyclone
 
@@ -64,7 +64,7 @@ v1.3.0; 2026-04-11
 	added HMAC modes: -m 50, 60, 150, 160, 1450, 1460, 1750, 1760, 6050, 6060
 	added UTF-16LE modes: -m 30, 40, 70, 130, 140, 170, 1430, 1440, 1470, 1730, 1740, 1770
 	optimized salt RNG for fewer syscalls on salted hash modes
-	added sanity check on invalid -m nth before opening stdin/wordlist
+	added sanity check on invalid -m mode before opening stdin/wordlist
 	compiled with Go v1.26.2
 v1.3.1; 2026-04-13
 	add modes: MD6-128, MD6-224, MD6-256, MD6-384, MD6-512
@@ -73,7 +73,7 @@ v1.3.2; 2026-08-18
 	add mode: SSHA -m 111
 	add mode: sha1crypt -m 15100
 	add mode: sm3crypt -m 35100
-	add mode: cmiyc (KoreLogic CMIYC 2026 contest algo)
+	add mode: cmiyc (KoreLogic CMIYC 2026 contest algorithm)
 	add modes: Streebog/GOST 2012 -m 11700, 11750, 11760, 11800, 11850, 11860
 	add modes: SHA-384 UTF-16LE -m 10830, 10840, 10870
 	add modes: LDAP SHA/SSHA -m 101, 1411, 1711
@@ -99,139 +99,150 @@ func helpFunc() {
 		"\nIf -w is not specified, defaults to stdin\n" +
 		"If -o is not specified, defaults to stdout\n" +
 		"If -t is not specified, defaults to max available CPU threads\n" +
-		"\nModes:\t\tHashcat Mode (notes):\n" +
-		"argon2id\t34000\n" +
+		"\nModes:\t\t\tHashcat Mode (notes):\n" +
+		"plaintext/dehex		99999 (decode $HEX[])\n" +
+		"hex			(encode to $HEX[])\n" +
 		"base32decode\n" +
 		"base32encode\n" +
 		"base58decode\n" +
 		"base58encode\n" +
 		"base64decode\n" +
 		"base64encode\n" +
-		"bcrypt\t\t3200\n" +
-		"bcryptmd5\t25600\n" +
-		"bcryptsha1\t25800\n" +
-		"bcryptsha512\t28400\n" +
-		"bcryptsha256\t30600\n" +
-		"wpbcrypt\t35500 (WordPress bcrypt-HMAC-SHA384)\n" +
-		"blake2s-256\n" +
-		"31000\t\t(hashcat compatible BLAKE2s-256)\n" +
-		"33300\t\t(hashcat compatible HMAC-BLAKE2s key = $pass)\n" +
-		"blake2b-256\n" +
-		"34800\t\t(hashcat compatible BLAKE2b-256)\n" +
-		"blake2b-384\n" +
-		"blake2b-512\n" +
-		"600\t\t(hashcat compatible BLAKE2b-512)\n" +
-		"610\t\t(hashcat compatible BLAKE2b-512 pass.salt)\n" +
-		"620\t\t(hashcat compatible BLAKE2b-512 salt.pass)\n" +
-		"34810\t\t(hashcat compatible BLAKE2b-256 pass.salt)\n" +
-		"34820\t\t(hashcat compatible BLAKE2b-256 salt.pass)\n" +
+		"morsecode		(ITU-R M.1677-1)\n" +
+		"morsedecode		(ITU-R M.1677-1)\n" +
+		"\n" +
 		"crc32\n" +
-		"11500\t\t(hashcat compatible CRC32)\n" +
+		"11500			(CRC32 Hashcat format)\n" +
 		"crc64\n" +
-		"hex\t\t(encode to $HEX[])\n" +
-		"dehex/plaintext\t99999 (decode $HEX[])\n" +
-		"md4\t\t900\n" +
-		"md5\t\t0\n" +
-		"halfmd5\t\t5100\n" +
-		"md5passsalt\t10\n" +
-		"md5saltpass\t20\n" +
-		"30\t\t(hashcat compatible md5 utf16le($pass).$salt)\n" +
-		"40\t\t(hashcat compatible md5 $salt.utf16le($pass))\n" +
-		"70\t\t(hashcat compatible md5 utf16le($pass))\n" +
-		"md5md5\t\t2600\n" +
-		"3500\t\t(hashcat compatible md5(md5(md5($pass))))\n" +
-		"4300\t\t(hashcat compatible md5(strtoupper(md5($pass))))\n" +
-		"4400\t\t(hashcat compatible md5(sha1($pass)))\n" +
-		"32800\t\t(hashcat compatible md5(sha1(md5($pass))))\n" +
-		"md5crypt\t500 (Linux shadow $1$)\n" +
-		"md6-128\n" +
-		"md6-224\n" +
-		"md6-256\t\t34600\n" +
-		"md6-384\n" +
-		"md6-512\n" +
-		"mysql4/mysql5\t300\n" +
-		"morsecode\t(ITU-R M.1677-1)\n" +
-		"morsedecode\t(ITU-R M.1677-1)\n" +
-		"ntlm\t\t1000 (Windows NT)\n" +
-		"phpass\t\t400\n" +
-		"ripemd-160\t6000\n" +
-		"sha1\t\t100\n" +
-		"ldap-sha\t101 (Netscape LDAP {SHA})\n" +
-		"sha1sha1\t4500\n" +
-		"4700\t\t(hashcat compatible sha1(md5($pass)))\n" +
-		"18500\t\t(hashcat compatible sha1(md5(md5($pass))))\n" +
-		"18501\t\t(sha1(md5(sha1($pass))))\n" +
-		"sha1passsalt\t110\n" +
-		"sha1saltpass\t120\n" +
-		"sha1crypt\t15100 (NetBSD/Juniper SHA1 crypt)\n" +
-		"ssha\t\t111 (NSLDAPS SSHA-1)\n" +
-		"130\t\t(hashcat compatible sha1 utf16le($pass).$salt)\n" +
-		"140\t\t(hashcat compatible sha1 $salt.utf16le($pass))\n" +
-		"170\t\t(hashcat compatible sha1 utf16le($pass))\n" +
-		"sha224\t\t1300\n" +
-		"sha224passsalt\t1310\n" +
-		"sha224saltpass\t1320\n" +
-		"34400\t\t(hashcat compatible sha224(sha224($pass)))\n" +
-		"34500\t\t(hashcat compatible sha224(sha1($pass)))\n" +
-		"sha256\t\t1400\n" +
-		"sha256passsalt\t1410\n" +
-		"sha256saltpass\t1420\n" +
-		"20800\t\t(hashcat compatible sha256(md5($pass)))\n" +
-		"35900\t\t(sha256(sha1($pass)))\n" +
-		"ssha256\t\t1411 (LDAP {SSHA256})\n" +
-		"1430\t\t(hashcat compatible sha256 utf16le($pass).$salt)\n" +
-		"1440\t\t(hashcat compatible sha256 $salt.utf16le($pass))\n" +
-		"1470\t\t(hashcat compatible sha256 utf16le($pass))\n" +
-		"sha256crypt\t7400 (Linux shadow $5$)\n" +
-		"sha384\t\t10800\n" +
-		"sha384passsalt\t10810\n" +
-		"sha384saltpass\t10820\n" +
-		"10830\t\t(hashcat compatible sha384 utf16le($pass).$salt)\n" +
-		"10840\t\t(hashcat compatible sha384 $salt.utf16le($pass))\n" +
-		"10870\t\t(hashcat compatible sha384 utf16le($pass))\n" +
-		"sha512\t\t1700\n" +
-		"sha512passsalt\t1710\n" +
-		"sha512saltpass\t1720\n" +
-		"ssha512\t\t1711 (LDAP {SSHA512})\n" +
-		"1730\t\t(hashcat compatible sha512 utf16le($pass).$salt)\n" +
-		"1740\t\t(hashcat compatible sha512 $salt.utf16le($pass))\n" +
-		"1770\t\t(hashcat compatible sha512 utf16le($pass))\n" +
-		"sha512crypt\t1800 (Linux shadow $6$)\n" +
-		"sm3crypt\t35100 (Unix $sm3$)\n" +
-		"cmiyc\t\t(KoreLogic CMIYC 2026 contest algo)\n" +
-		"50\t\t(hashcat compatible HMAC-MD5 key = $pass)\n" +
-		"60\t\t(hashcat compatible HMAC-MD5 key = $salt)\n" +
-		"150\t\t(hashcat compatible HMAC-SHA1 key = $pass)\n" +
-		"160\t\t(hashcat compatible HMAC-SHA1 key = $salt)\n" +
-		"1450\t\t(hashcat compatible HMAC-SHA256 key = $pass)\n" +
-		"1460\t\t(hashcat compatible HMAC-SHA256 key = $salt)\n" +
-		"1750\t\t(hashcat compatible HMAC-SHA512 key = $pass)\n" +
-		"1760\t\t(hashcat compatible HMAC-SHA512 key = $salt)\n" +
-		"6050\t\t(hashcat compatible HMAC-RIPEMD160 key = $pass)\n" +
-		"6060\t\t(hashcat compatible HMAC-RIPEMD160 key = $salt)\n" +
-		"streebog-256\t11700\n" +
-		"11750\t\t(hashcat compatible HMAC-Streebog-256 key = $pass)\n" +
-		"11760\t\t(hashcat compatible HMAC-Streebog-256 key = $salt)\n" +
-		"streebog-512\t11800\n" +
-		"11850\t\t(hashcat compatible HMAC-Streebog-512 key = $pass)\n" +
-		"11860\t\t(hashcat compatible HMAC-Streebog-512 key = $salt)\n" +
-		"10900\t\t(hashcat compatible PBKDF2-HMAC-SHA256)\n" +
-		"11900\t\t(hashcat compatible PBKDF2-HMAC-MD5)\n" +
-		"12000\t\t(hashcat compatible PBKDF2-HMAC-SHA1)\n" +
-		"12100\t\t(hashcat compatible PBKDF2-HMAC-SHA512)\n" +
-		"sha512-224\n" +
-		"sha512-256\n" +
-		"sha3-224\t17300\n" +
-		"sha3-256\t17400\n" +
-		"sha3-384\t17500\n" +
-		"sha3-512\t17600\n" +
-		"keccak-224\t17700\n" +
-		"keccak-256\t17800\n" +
-		"keccak-384\t17900\n" +
-		"keccak-512\t18000\n" +
-		"scrypt\t\t8900\n" +
-		"gost-yescrypt\t(Linux shadow $gy$)\n" +
-		"yescrypt\t(Linux shadow $y$)\n"
+		"\n" +
+		"md4			900\n" +
+		"md5			0\n" +
+		"halfmd5			5100\n" +
+		"md5passsalt		10\n" +
+		"md5saltpass		20\n" +
+		"md5utf16passsalt	30\n" +
+		"md5utf16saltpass	40\n" +
+		"hmacmd5pass		50\n" +
+		"hmacmd5salt		60\n" +
+		"md5utf16le		70\n" +
+		"md5md5			2600\n" +
+		"3500			(md5(md5(md5($pass))))\n" +
+		"4300			(md5(strtoupper(md5($pass))))\n" +
+		"4400			(md5(sha1($pass)))\n" +
+		"32800			(md5(sha1(md5($pass))))\n" +
+		"\n" +
+		"md6128\n" +
+		"md6224\n" +
+		"md6256			34600\n" +
+		"md6384\n" +
+		"md6512\n" +
+		"\n" +
+		"sha1			100\n" +
+		"ldapsha			101 (Netscape LDAP {SHA})\n" +
+		"sha1passsalt		110\n" +
+		"ssha			111 (NSLDAPS SSHA-1)\n" +
+		"sha1saltpass		120\n" +
+		"sha1utf16passsalt	130\n" +
+		"sha1utf16saltpass	140\n" +
+		"hmacsha1pass		150\n" +
+		"hmacsha1salt		160\n" +
+		"sha1utf16le		170\n" +
+		"sha1sha1		4500\n" +
+		"4700			(sha1(md5($pass)))\n" +
+		"18500			(sha1(md5(md5($pass))))\n" +
+		"18501			(sha1(md5(sha1($pass))))\n" +
+		"\n" +
+		"sha224			1300\n" +
+		"sha224passsalt		1310\n" +
+		"sha224saltpass		1320\n" +
+		"34400			(sha224(sha224($pass)))\n" +
+		"34500			(sha224(sha1($pass)))\n" +
+		"sha256			1400\n" +
+		"sha256passsalt		1410\n" +
+		"ssha256			1411 (LDAP {SSHA256})\n" +
+		"sha256saltpass		1420\n" +
+		"sha256utf16passsalt	1430\n" +
+		"sha256utf16saltpass	1440\n" +
+		"hmacsha256pass		1450\n" +
+		"hmacsha256salt		1460\n" +
+		"sha256utf16le		1470\n" +
+		"20800			(sha256(md5($pass)))\n" +
+		"35900			(sha256(sha1($pass)))\n" +
+		"sha384			10800\n" +
+		"sha384passsalt		10810\n" +
+		"sha384saltpass		10820\n" +
+		"sha384utf16passsalt	10830\n" +
+		"sha384utf16saltpass	10840\n" +
+		"sha384utf16le		10870\n" +
+		"sha512			1700\n" +
+		"sha512passsalt		1710\n" +
+		"ssha512			1711 (LDAP {SSHA512})\n" +
+		"sha512saltpass		1720\n" +
+		"sha512utf16passsalt	1730\n" +
+		"sha512utf16saltpass	1740\n" +
+		"hmacsha512pass		1750\n" +
+		"hmacsha512salt		1760\n" +
+		"sha512utf16le		1770\n" +
+		"sha512224\n" +
+		"sha512256\n" +
+		"\n" +
+		"sha3224			17300\n" +
+		"sha3256			17400\n" +
+		"sha3384			17500\n" +
+		"sha3512			17600\n" +
+		"\n" +
+		"keccak224		17700\n" +
+		"keccak256		17800\n" +
+		"keccak384		17900\n" +
+		"keccak512		18000\n" +
+		"\n" +
+		"blake2s256\n" +
+		"31000			(BLAKE2s-256 $BLAKE2$ format)\n" +
+		"hmacblake2spass		33300\n" +
+		"blake2b256\n" +
+		"34800			(BLAKE2b-256 $BLAKE2$ format)\n" +
+		"blake2b256passsalt	34810\n" +
+		"blake2b256saltpass	34820\n" +
+		"blake2b384\n" +
+		"blake2b512\n" +
+		"600			(BLAKE2b-512 $BLAKE2$ format)\n" +
+		"blake2b512passsalt	610\n" +
+		"blake2b512saltpass	620\n" +
+		"\n" +
+		"ntlm			1000 (Windows NT)\n" +
+		"mysql4/mysql5		300\n" +
+		"ripemd160		6000\n" +
+		"hmacripemd160pass	6050\n" +
+		"hmacripemd160salt	6060\n" +
+		"\n" +
+		"streebog256		11700\n" +
+		"hmacstreebog256pass	11750\n" +
+		"hmacstreebog256salt	11760\n" +
+		"streebog512		11800\n" +
+		"hmacstreebog512pass	11850\n" +
+		"hmacstreebog512salt	11860\n" +
+		"\n" +
+		"argon2id		34000\n" +
+		"bcrypt			3200\n" +
+		"bcryptmd5		25600\n" +
+		"bcryptsha1		25800\n" +
+		"bcryptsha512		28400\n" +
+		"bcryptsha256		30600\n" +
+		"wpbcrypt		35500 (WordPress bcrypt-HMAC-SHA384)\n" +
+		"md5crypt		500 (Linux shadow $1$)\n" +
+		"sha1crypt		15100 (NetBSD/Juniper SHA1 crypt)\n" +
+		"sha256crypt		7400 (Linux shadow $5$)\n" +
+		"sha512crypt		1800 (Linux shadow $6$)\n" +
+		"sm3crypt		35100 (Unix $sm3$)\n" +
+		"phpass/phpbb3		400 ($P$ / $H$)\n" +
+		"scrypt			8900\n" +
+		"pbkdf2sha256		10900\n" +
+		"pbkdf2md5		11900\n" +
+		"pbkdf2sha1		12000\n" +
+		"pbkdf2sha512		12100\n" +
+		"yescrypt		(Linux shadow $y$)\n" +
+		"gostyescrypt		(Linux shadow $gy$)\n" +
+		"cmiyc			(KoreLogic CMIYC 2026 contest algorithm)"
 	fmt.Fprintln(os.Stderr, str)
 	os.Exit(0)
 }
@@ -248,7 +259,7 @@ var modeProbe bool
 
 func isPBKDF2Mode(m string) bool {
 	switch m {
-	case "10900", "pbkdf2-sha256", "11900", "pbkdf2-md5", "12000", "pbkdf2-sha1", "12100", "pbkdf2-sha512":
+	case "10900", "pbkdf2sha256", "pbkdf2-sha256", "11900", "pbkdf2md5", "pbkdf2-md5", "12000", "pbkdf2sha1", "pbkdf2-sha1", "12100", "pbkdf2sha512", "pbkdf2-sha512":
 		return true
 	default:
 		return false
@@ -364,7 +375,7 @@ func sha512HexBytes(data []byte) [128]byte {
 
 // LDAP SHA/SSHA family -m 101 / 111 / 1411 / 1711
 func ldapSHA(password []byte, mode string, saltRaw []byte) string {
-	if mode == "101" || mode == "ldap-sha" {
+	if mode == "101" || mode == "ldapsha" || mode == "ldap-sha" {
 		digest := sha1.Sum(password)
 		return "{SHA}" + base64.StdEncoding.EncodeToString(digest[:])
 	}
@@ -687,7 +698,7 @@ func phpassMD5(password []byte, mode string, countLog2 int, saltRaw []byte) stri
 	if countLog2 <= 0 {
 		countLog2 = 11
 	}
-	if saltRaw == nil || len(saltRaw) < 6 {
+	if len(saltRaw) < 6 {
 		saltRaw = make([]byte, 6)
 		if !readRand(saltRaw) {
 			return ""
@@ -748,7 +759,7 @@ func phpassMD5(password []byte, mode string, countLog2 int, saltRaw []byte) stri
 	return string(out)
 }
 
-// md5crypt - linux shadow "$1$<salt>$<hash>"
+// md5crypt - Linux shadow "$1$<salt>$<hash>"
 func md5crypt(password []byte) string {
 	const magic = "$1$"
 	salt := make([]byte, 8)
@@ -862,7 +873,7 @@ func md5crypt(password []byte) string {
 	return string(out)
 }
 
-// sha256crypt - linux shadow $5$[rounds=R$]<salt>$<hash>
+// sha256crypt - Linux shadow $5$[rounds=R$]<salt>$<hash>
 func sha256crypt(password []byte) string {
 	const magic = "$5$"
 	rounds := 5000
@@ -978,7 +989,7 @@ func sha256crypt(password []byte) string {
 	return string(out)
 }
 
-// sha512crypt - linux shadow ($6$)
+// sha512crypt - Linux shadow ($6$)
 func sha512crypt(password []byte) string {
 	const magic = "$6$"
 	const rounds = 5000
@@ -1295,7 +1306,7 @@ const (
 
 var cmiycMemPool = sync.Pool{New: func() any { return make([]byte, cmiycMemSize) }}
 
-// cmiyc 2026 contest algo - memory-hard SHA-512 KDF
+// cmiyc 2026 contest algorithm - memory-hard SHA-512 KDF
 func cmiyc(password []byte, saltRaw []byte) string {
 	var salt [16]byte
 	if len(saltRaw) >= len(salt) {
@@ -1411,9 +1422,9 @@ func wpbcrypt(password []byte, cost int) string {
 	return wpPrefix + s[1:]
 }
 
-// yescrypt, using debian/libxcrypt defaults
+// yescrypt, using Debian/libxcrypt defaults
 func yescryptHash(pass []byte) string {
-	// debian/libxcrypt defaults: N=4096, r=32, p=1, keyLen=32, 128-bit salt
+	// Debian/libxcrypt defaults: N=4096, r=32, p=1, keyLen=32, 128-bit salt
 	const N = 4096
 	const r = 32
 	const p = 1
@@ -1467,7 +1478,7 @@ func yescryptHash(pass []byte) string {
 	return "$y$" + string(params) + "$" + encode64(salt) + "$" + encode64(key)
 }
 
-// gost-yescrypt, using debian/libxcrypt defaults
+// gost-yescrypt, using Debian/libxcrypt defaults
 func gostYescryptHash(pass []byte) string {
 	const N = 4096
 	const r = 32
@@ -1535,16 +1546,16 @@ func isBcryptMode(mode string) bool {
 	}
 }
 
-// supported hash algos / modes
+// supported hash algorithms / modes
 func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 	if modeProbe {
 		if isBcryptMode(hashFunc) {
 			return "", true
 		}
 		switch hashFunc {
-		case "argon2id", "34000", "yescrypt", "gost-yescrypt",
+		case "argon2id", "34000", "yescrypt", "gostyescrypt", "gost-yescrypt",
 			"8900", "scrypt",
-			"10900", "pbkdf2-sha256", "11900", "pbkdf2-md5", "12000", "pbkdf2-sha1", "12100", "pbkdf2-sha512",
+			"10900", "pbkdf2sha256", "pbkdf2-sha256", "11900", "pbkdf2md5", "pbkdf2-md5", "12000", "pbkdf2sha1", "pbkdf2-sha1", "12100", "pbkdf2sha512", "pbkdf2-sha512",
 			"md5crypt", "500", "sha1crypt", "15100", "sha256crypt", "7400", "sha512crypt", "1800", "sm3crypt", "35100", "cmiyc",
 			"phpass", "phpbb3", "400":
 			return "", true
@@ -1794,7 +1805,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		return hex.EncodeToString(h[:]), true
 
 	// LDAP SHA/SSHA -m 101 / 111 / 1411 / 1711
-	case "ldap-sha", "101", "ssha", "111", "ssha256", "1411", "ssha512", "1711":
+	case "ldapsha", "ldap-sha", "101", "ssha", "111", "ssha256", "1411", "ssha512", "1711":
 		return ldapSHA(data, hashFunc, nil), true
 
 	// -m 110 sha1(pass.salt), -m 120 sha1(salt.pass)
@@ -2174,14 +2185,14 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 
 	// HMAC (hashcat: hex_digest : salt)
 
-	case "50", "hmac-md5-pass", "60", "hmac-md5-salt":
+	case "50", "hmacmd5pass", "hmac-md5-pass", "60", "hmacmd5salt", "hmac-md5-salt":
 		var saltBuf [16]byte
 		if !fillSaltHex8(saltBuf[:]) {
 			return "", true
 		}
 		salt := saltBuf[:]
 		var m []byte
-		if hashFunc == "50" || hashFunc == "hmac-md5-pass" {
+		if hashFunc == "50" || hashFunc == "hmacmd5pass" || hashFunc == "hmac-md5-pass" {
 			h := hmac.New(md5.New, data)
 			h.Write(salt)
 			m = h.Sum(nil)
@@ -2192,14 +2203,14 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		}
 		return hexMACLineDigest(m, salt), true
 
-	case "150", "hmac-sha1-pass", "160", "hmac-sha1-salt":
+	case "150", "hmacsha1pass", "hmac-sha1-pass", "160", "hmacsha1salt", "hmac-sha1-salt":
 		var saltBuf [16]byte
 		if !fillSaltHex8(saltBuf[:]) {
 			return "", true
 		}
 		salt := saltBuf[:]
 		var m []byte
-		if hashFunc == "150" || hashFunc == "hmac-sha1-pass" {
+		if hashFunc == "150" || hashFunc == "hmacsha1pass" || hashFunc == "hmac-sha1-pass" {
 			h := hmac.New(sha1.New, data)
 			h.Write(salt)
 			m = h.Sum(nil)
@@ -2210,14 +2221,14 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		}
 		return hexMACLineDigest(m, salt), true
 
-	case "1450", "hmac-sha256-pass", "1460", "hmac-sha256-salt":
+	case "1450", "hmacsha256pass", "hmac-sha256-pass", "1460", "hmacsha256salt", "hmac-sha256-salt":
 		var saltBuf [16]byte
 		if !fillSaltHex8(saltBuf[:]) {
 			return "", true
 		}
 		salt := saltBuf[:]
 		var m []byte
-		if hashFunc == "1450" || hashFunc == "hmac-sha256-pass" {
+		if hashFunc == "1450" || hashFunc == "hmacsha256pass" || hashFunc == "hmac-sha256-pass" {
 			h := hmac.New(sha256.New, data)
 			h.Write(salt)
 			m = h.Sum(nil)
@@ -2228,14 +2239,14 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		}
 		return hexMACLineDigest(m, salt), true
 
-	case "1750", "hmac-sha512-pass", "1760", "hmac-sha512-salt":
+	case "1750", "hmacsha512pass", "hmac-sha512-pass", "1760", "hmacsha512salt", "hmac-sha512-salt":
 		var saltBuf [16]byte
 		if !fillSaltHex8(saltBuf[:]) {
 			return "", true
 		}
 		salt := saltBuf[:]
 		var m []byte
-		if hashFunc == "1750" || hashFunc == "hmac-sha512-pass" {
+		if hashFunc == "1750" || hashFunc == "hmacsha512pass" || hashFunc == "hmac-sha512-pass" {
 			h := hmac.New(sha512.New, data)
 			h.Write(salt)
 			m = h.Sum(nil)
@@ -2246,14 +2257,14 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		}
 		return hexMACLineDigest(m, salt), true
 
-	case "6050", "hmac-ripemd160-pass", "6060", "hmac-ripemd160-salt":
+	case "6050", "hmacripemd160pass", "hmac-ripemd160-pass", "6060", "hmacripemd160salt", "hmac-ripemd160-salt":
 		var saltBuf [16]byte
 		if !fillSaltHex8(saltBuf[:]) {
 			return "", true
 		}
 		salt := saltBuf[:]
 		var m []byte
-		if hashFunc == "6050" || hashFunc == "hmac-ripemd160-pass" {
+		if hashFunc == "6050" || hashFunc == "hmacripemd160pass" || hashFunc == "hmac-ripemd160-pass" {
 			h := hmac.New(ripemd160.New, data)
 			h.Write(salt)
 			m = h.Sum(nil)
@@ -2264,14 +2275,14 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		}
 		return hexMACLineDigest(m, salt), true
 
-	case "11750", "hmac-streebog256-pass", "11760", "hmac-streebog256-salt":
+	case "11750", "hmacstreebog256pass", "hmac-streebog256-pass", "11760", "hmacstreebog256salt", "hmac-streebog256-salt":
 		var saltBuf [16]byte
 		if !fillSaltHex8(saltBuf[:]) {
 			return "", true
 		}
 		salt := saltBuf[:]
 		var m []byte
-		if hashFunc == "11750" || hashFunc == "hmac-streebog256-pass" {
+		if hashFunc == "11750" || hashFunc == "hmacstreebog256pass" || hashFunc == "hmac-streebog256-pass" {
 			h := hmac.New(streebog.New256, data)
 			h.Write(salt)
 			m = h.Sum(nil)
@@ -2283,14 +2294,14 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		reverseBytes(m)
 		return hexMACLineDigest(m, salt), true
 
-	case "11850", "hmac-streebog512-pass", "11860", "hmac-streebog512-salt":
+	case "11850", "hmacstreebog512pass", "hmac-streebog512-pass", "11860", "hmacstreebog512salt", "hmac-streebog512-salt":
 		var saltBuf [16]byte
 		if !fillSaltHex8(saltBuf[:]) {
 			return "", true
 		}
 		salt := saltBuf[:]
 		var m []byte
-		if hashFunc == "11850" || hashFunc == "hmac-streebog512-pass" {
+		if hashFunc == "11850" || hashFunc == "hmacstreebog512pass" || hashFunc == "hmac-streebog512-pass" {
 			h := hmac.New(streebog.New512, data)
 			h.Write(salt)
 			m = h.Sum(nil)
@@ -2398,7 +2409,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		return string(buf), true
 
 	// hashcat -m 33300 HMAC-BLAKE2s (key = $pass)
-	case "33300", "hmac-blake2s-pass":
+	case "33300", "hmacblake2spass", "hmac-blake2s-pass":
 		var saltBuf [16]byte
 		if !fillSaltHex8(saltBuf[:]) {
 			return "", true
@@ -2451,7 +2462,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 	// Crypt / KDF
 
 	// PBKDF2-HMAC-SHA256 -m 10900
-	case "10900", "pbkdf2-sha256":
+	case "10900", "pbkdf2sha256", "pbkdf2-sha256":
 		var salt [8]byte
 		if !readRand(salt[:]) {
 			return "", true
@@ -2460,7 +2471,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		return fmt.Sprintf("sha256:%d:%s:%s", pbkdf2IterCount, base64.StdEncoding.EncodeToString(salt[:]), base64.StdEncoding.EncodeToString(dk)), true
 
 	// PBKDF2-HMAC-MD5 -m 11900
-	case "11900", "pbkdf2-md5":
+	case "11900", "pbkdf2md5", "pbkdf2-md5":
 		var salt [8]byte
 		if !readRand(salt[:]) {
 			return "", true
@@ -2469,7 +2480,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		return fmt.Sprintf("md5:%d:%s:%s", pbkdf2IterCount, base64.StdEncoding.EncodeToString(salt[:]), base64.StdEncoding.EncodeToString(dk)), true
 
 	// PBKDF2-HMAC-SHA1 -m 12000
-	case "12000", "pbkdf2-sha1":
+	case "12000", "pbkdf2sha1", "pbkdf2-sha1":
 		var salt [8]byte
 		if !readRand(salt[:]) {
 			return "", true
@@ -2478,7 +2489,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		return fmt.Sprintf("sha1:%d:%s:%s", pbkdf2IterCount, base64.StdEncoding.EncodeToString(salt[:]), base64.StdEncoding.EncodeToString(dk)), true
 
 	// PBKDF2-HMAC-SHA512 -m 12100
-	case "12100", "pbkdf2-sha512":
+	case "12100", "pbkdf2sha512", "pbkdf2-sha512":
 		var salt [8]byte
 		if !readRand(salt[:]) {
 			return "", true
@@ -2540,7 +2551,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		prehash := sha256HexBytes(data)
 		return bcryptHash(prehash[:], cost), true
 
-	// wordpress bcrypt -m 35500
+	// WordPress bcrypt -m 35500
 	case "wpbcrypt", "35500":
 		return wpbcrypt(data, cost), true
 
@@ -2577,7 +2588,7 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		return yescryptHash(data), true
 
 	// gost-yescrypt
-	case "gost-yescrypt":
+	case "gostyescrypt", "gost-yescrypt":
 		return gostYescryptHash(data), true
 
 	default:
@@ -2622,7 +2633,7 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 	//var readBufferSize = 1024 * 1024 // read buffer
 	var readBufferSize = numGoroutines + 16*32*1024 // variable read buffer
 
-	// lower read buffer for slow(ish) algos
+	// lower read buffer for slow(ish) algorithms
 	{
 		bufFixed := map[string]bool{
 			"phpass": true, "phpbb3": true, "400": true,
@@ -2631,10 +2642,10 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 			"sm3crypt": true, "35100": true,
 			"sha256crypt": true, "7400": true,
 			"sha512crypt": true, "1800": true,
-			"10900": true, "pbkdf2-sha256": true,
-			"11900": true, "pbkdf2-md5": true,
-			"12000": true, "pbkdf2-sha1": true,
-			"12100": true, "pbkdf2-sha512": true,
+			"10900": true, "pbkdf2sha256": true, "pbkdf2-sha256": true,
+			"11900": true, "pbkdf2md5": true, "pbkdf2-md5": true,
+			"12000": true, "pbkdf2sha1": true, "pbkdf2-sha1": true,
+			"12100": true, "pbkdf2sha512": true, "pbkdf2-sha512": true,
 		}
 		if bufFixed[hashFunc] {
 			readBufferSize = numGoroutines + 16*32
@@ -2650,7 +2661,7 @@ func startProc(hashFunc string, inputFile string, outputPath string, hashPlainOu
 	{
 		bufSlow := map[string]bool{
 			"argon2id": true, "34000": true,
-			"yescrypt": true, "gost-yescrypt": true,
+			"yescrypt": true, "gostyescrypt": true, "gost-yescrypt": true,
 			"cmiyc": true,
 			"8900":  true, "scrypt": true,
 		}
@@ -2874,9 +2885,9 @@ func main() {
 		helpFunc()
 	}
 
-	// run sanity checks on algo input (-m)
+	// run sanity checks on mode input (-m)
 	if *hashFunc == "" {
-		log.Fatalf("--> missing '-m algo' <--\n")
+		log.Fatalf("--> missing '-m mode' <--")
 	}
 	modeProbe = true
 	_, ok := hashBytesDispatch(*hashFunc, nil, *costFlag)
