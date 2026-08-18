@@ -5,6 +5,7 @@ add mode: SSHA -m 111
 add mode: sha1crypt -m 15100
 add mode: sm3crypt -m 35100
 add mode: cmiyc (KoreLogic CMIYC 2026 contest algo)
+add modes: Streebog/GOST 2012 -m 11700, 11750, 11760, 11800, 11850, 11860
 ```
 ### v1.3.1; 2026-04-13
 ```

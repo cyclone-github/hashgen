@@ -173,6 +173,14 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | 6050 | (hashcat compatible HMAC-RIPEMD160 key = $pass) |
 | 6060 | (hashcat compatible HMAC-RIPEMD160 key = $salt) |
 | | |
+| **`Streebog / GOST R 34.11-2012`** | |
+| streebog-256 | 11700 |
+| 11750 | (HMAC-Streebog-256 key = $pass) |
+| 11760 | (HMAC-Streebog-256 key = $salt) |
+| streebog-512 | 11800 |
+| 11850 | (HMAC-Streebog-512 key = $pass) |
+| 11860 | (HMAC-Streebog-512 key = $salt) |
+| | |
 | **`Crypt / KDF`** | |
 | argon2id | 34000 |
 | bcrypt | 3200 |
