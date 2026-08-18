@@ -107,6 +107,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | sha1sha1 | 4500 |
 | sha1passsalt | 110 |
 | sha1saltpass | 120 |
+| ssha | 111 (NSLDAPS SSHA-1) |
 | 130 | (hashcat compatible sha1 utf16le($pass).$salt) |
 | 140 | (hashcat compatible sha1 $salt.utf16le($pass)) |
 | 150 | (hashcat compatible HMAC-SHA1 key = $pass) |
@@ -177,6 +178,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | bcrypt | 3200 |
 | wpbcrypt | (WordPress bcrypt-HMAC-SHA384) |
 | md5crypt | 500 (`Linux shadow $1$`) |
+| sha1crypt | 15100 (`NetBSD/Juniper SHA1 crypt`) |
 | sha256crypt | 7400 (`Linux shadow $5$`) |
 | sha512crypt | 1800 (`Linux shadow $6$`) |
 | phpass | 400 (`PHP/WordPress $P$/phpBB3 $H$`) |
