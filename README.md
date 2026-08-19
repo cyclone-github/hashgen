@@ -1,16 +1,11 @@
 [![Readme Card](https://github-readme-stats-fast.vercel.app/api/pin/?username=cyclone-github&repo=hashgen&theme=gruvbox)](https://github.com/cyclone-github/hashgen/)
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/cyclone-github/hashgen)](https://goreportcard.com/report/github.com/cyclone-github/hashgen)
 [![GitHub issues](https://img.shields.io/github/issues/cyclone-github/hashgen.svg)](https://github.com/cyclone-github/hashgen/issues)
 [![License](https://img.shields.io/github/license/cyclone-github/hashgen.svg)](LICENSE)
 [![GitHub release](https://img.shields.io/github/release/cyclone-github/hashgen.svg)](https://github.com/cyclone-github/hashgen/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/cyclone-github/hashgen.svg)](https://pkg.go.dev/github.com/cyclone-github/hashgen)
 
-### Install latest published release:
-```
-go install github.com/cyclone-github/hashgen@latest
-```
-### Install latest source code (bleeding edge):
+### Install latest from source code:
 ```
 go install github.com/cyclone-github/hashgen@main
 ```
@@ -18,29 +13,29 @@ go install github.com/cyclone-github/hashgen@main
 # hashgen - Cyclone's hash generator
 ```
 $ hashgen -m md5 -w rockyou.txt -b
-2026/04/11 12:28:58 Starting...
-2026/04/11 12:28:58 Processing file: /media/ramdisk/rockyou.txt
-2026/04/11 12:28:58 Hash function: 0
-2026/04/11 12:28:58 CPU Threads: 16
-2026/04/11 12:28:58 Finished processing 14344391 lines in 0.446 sec (32.127 M lines/sec)
+2026/08/18 18:26:09 Starting...
+2026/08/18 18:26:09 Processing file: /media/ramdisk/rockyou.txt
+2026/08/18 18:26:09 Hash function: 0
+2026/08/18 18:26:09 CPU Threads: 16
+2026/08/18 18:26:10 Finished processing 14344391 lines in 0.443 sec (32.346 M lines/sec)
 ```
-Hashgen has a top recorded hashrate of 32.127 million md5/sec on the test rig's Ryzen 7 3700X CPU. (see benchmarks) Much faster hashrates have been seen on newer / faster CPU's.
+Hashgen has a top recorded hashrate of 32.346 million md5/sec on the test rig's Ryzen 7 3700X CPU. (see benchmarks) Much faster hashrates have been seen on newer / faster CPUs.
 
-Hashgen is a CLI hash generator written in Go and can be cross compiled for Linux, Raspberry Pi, Windows & Mac, although testing and compiling is mainly done on debian 12 linux.
+Hashgen is a CLI hash generator written in Go and can be cross-compiled for Linux, Raspberry Pi, Windows & Mac, although testing and compiling is mainly done on Debian 12 Linux.
 
 To use hashgen, type your mode, wordlist input & hash output files with a simple command line.
 
 ### Features:
 - Maintains original input order [PR 10](https://github.com/cyclone-github/hashgen/pull/10)
-- Supports 100+ modes/functions (see list below)
+- Supports 130+ modes/functions (see list below)
 - Encode / decode base64, base58, base32
 - Hex / dehex wordlists
 - Supports ASCII, UTF-8 and $HEX[] input
 - Supports UTF-8 (default) or $HEX[] output
 - Supports multiple salted modes
-- Supports HMAC, KDF, scrypt, bcrypt, linux shadow modes, checksums, morsecode, etc
+- Also supports HMAC, KDF, scrypt, bcrypt, Linux shadow modes, checksums, morsecode, etc
 
-| Useage Examples | Command Line |
+| Usage Examples | Command Line |
 |-----------|-----------|
 | read wordlist.txt, hash to md5 and write to output.txt | ./hashgen -m md5 -w wordlist.txt -o output.txt |
 | pipe wordlist into hashgen and write to stdout | cat wordlist.txt \| ./hashgen -m md5 |
@@ -52,7 +47,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 ### Supported Options:
 | Flag: | Description: |
 |-----------|-----------|
-| -m  | {mode} | 
+| -m  | {mode} |
 | -w  | {wordlist input} |
 | -t  | {cpu threads} |
 | -o  | {wordlist output} |
@@ -67,7 +62,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | Function: | Hashcat Mode: |
 |-----------------|----------------|
 | **`Plaintext & Encoding`** | |
-| plaintext / dehex | 99999 (decode $HEX[]) |
+| plaintext/dehex | 99999 (decode $HEX[]) |
 | hex | (encode to $HEX[]) |
 | base32decode | |
 | base32encode | |
@@ -80,123 +75,124 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | | |
 | **`Checksums`** | |
 | crc32 | |
-| 11500 | (hashcat compatible CRC32) |
+| 11500 | (CRC32 Hashcat format) |
 | crc64 | |
 | | |
 | **`MDx`** | |
 | md4 | 900 |
 | md5 | 0 |
-| md5md5 | 2600 |
-| 3500 | (hashcat compatible md5(md5(md5($pass)))) |
-| 4300 | (hashcat compatible md5(strtoupper(md5($pass)))) |
-| 4400 | (hashcat compatible md5(sha1($pass))) |
-| 32800 | (hashcat compatible md5(sha1(md5($pass)))) |
 | halfmd5 | 5100 |
 | md5passsalt | 10 |
 | md5saltpass | 20 |
-| 30 | (hashcat compatible md5 utf16le($pass).$salt) |
-| 40 | (hashcat compatible md5 $salt.utf16le($pass)) |
-| 50 | (hashcat compatible HMAC-MD5 key = $pass) |
-| 60 | (hashcat compatible HMAC-MD5 key = $salt) |
-| 70 | (hashcat compatible md5 utf16le($pass)) |
+| md5utf16passsalt | 30 |
+| md5utf16saltpass | 40 |
+| hmacmd5pass | 50 |
+| hmacmd5salt | 60 |
+| md5utf16le | 70 |
+| md5md5 | 2600 |
+| 3500 | (md5(md5(md5($pass)))) |
+| 4300 | (md5(strtoupper(md5($pass)))) |
+| 4400 | (md5(sha1($pass))) |
+| 32800 | (md5(sha1(md5($pass)))) |
 | | |
 | **`MD6`** | |
-| md6-128 | |
-| md6-224 | |
-| md6-256 | 34600 |
-| md6-384 | |
-| md6-512 | |
+| md6128 | |
+| md6224 | |
+| md6256 | 34600 |
+| md6384 | |
+| md6512 | |
+| | |
 | **`SHA1`** | |
 | sha1 | 100 |
-| ldap-sha | 101 (Netscape LDAP {SHA}) |
-| sha1sha1 | 4500 |
-| 4700 | (hashcat compatible sha1(md5($pass))) |
-| 18500 | (hashcat compatible sha1(md5(md5($pass)))) |
-| 18501 | (sha1(md5(sha1($pass)))) |
+| ldapsha | 101 (Netscape LDAP {SHA}) |
 | sha1passsalt | 110 |
-| sha1saltpass | 120 |
 | ssha | 111 (NSLDAPS SSHA-1) |
-| 130 | (hashcat compatible sha1 utf16le($pass).$salt) |
-| 140 | (hashcat compatible sha1 $salt.utf16le($pass)) |
-| 150 | (hashcat compatible HMAC-SHA1 key = $pass) |
-| 160 | (hashcat compatible HMAC-SHA1 key = $salt) |
-| 170 | (hashcat compatible sha1 utf16le($pass)) |
+| sha1saltpass | 120 |
+| sha1utf16passsalt | 130 |
+| sha1utf16saltpass | 140 |
+| hmacsha1pass | 150 |
+| hmacsha1salt | 160 |
+| sha1utf16le | 170 |
+| sha1sha1 | 4500 |
+| 4700 | (sha1(md5($pass))) |
+| 18500 | (sha1(md5(md5($pass)))) |
+| 18501 | (sha1(md5(sha1($pass)))) |
 | | |
 | **`SHA2`** | |
 | sha224 | 1300 |
 | sha224passsalt | 1310 |
 | sha224saltpass | 1320 |
-| 34400 | (hashcat compatible sha224(sha224($pass))) |
-| 34500 | (hashcat compatible sha224(sha1($pass))) |
+| 34400 | (sha224(sha224($pass))) |
+| 34500 | (sha224(sha1($pass))) |
 | sha256 | 1400 |
 | sha256passsalt | 1410 |
-| sha256saltpass | 1420 |
-| 20800 | (hashcat compatible sha256(md5($pass))) |
-| 35900 | (sha256(sha1($pass))) |
 | ssha256 | 1411 (LDAP {SSHA256}) |
-| 1430 | (hashcat compatible sha256 utf16le($pass).$salt) |
-| 1440 | (hashcat compatible sha256 $salt.utf16le($pass)) |
-| 1450 | (hashcat compatible HMAC-SHA256 key = $pass) |
-| 1460 | (hashcat compatible HMAC-SHA256 key = $salt) |
-| 1470 | (hashcat compatible sha256 utf16le($pass)) |
+| sha256saltpass | 1420 |
+| sha256utf16passsalt | 1430 |
+| sha256utf16saltpass | 1440 |
+| hmacsha256pass | 1450 |
+| hmacsha256salt | 1460 |
+| sha256utf16le | 1470 |
+| 20800 | (sha256(md5($pass))) |
+| 35900 | (sha256(sha1($pass))) |
 | sha384 | 10800 |
 | sha384passsalt | 10810 |
 | sha384saltpass | 10820 |
-| 10830 | (hashcat compatible sha384 utf16le($pass).$salt) |
-| 10840 | (hashcat compatible sha384 $salt.utf16le($pass)) |
-| 10870 | (hashcat compatible sha384 utf16le($pass)) |
+| sha384utf16passsalt | 10830 |
+| sha384utf16saltpass | 10840 |
+| sha384utf16le | 10870 |
 | sha512 | 1700 |
 | sha512passsalt | 1710 |
-| sha512saltpass | 1720 |
 | ssha512 | 1711 (LDAP {SSHA512}) |
-| 1730 | (hashcat compatible sha512 utf16le($pass).$salt) |
-| 1740 | (hashcat compatible sha512 $salt.utf16le($pass)) |
-| 1750 | (hashcat compatible HMAC-SHA512 key = $pass) |
-| 1760 | (hashcat compatible HMAC-SHA512 key = $salt) |
-| 1770 | (hashcat compatible sha512 utf16le($pass)) |
-| sha512-224 | |
-| sha512-256 | |
+| sha512saltpass | 1720 |
+| sha512utf16passsalt | 1730 |
+| sha512utf16saltpass | 1740 |
+| hmacsha512pass | 1750 |
+| hmacsha512salt | 1760 |
+| sha512utf16le | 1770 |
+| sha512224 | |
+| sha512256 | |
 | | |
 | **`SHA3`** | |
-| sha3-224 | 17300 |
-| sha3-256 | 17400 |
-| sha3-384 | 17500 |
-| sha3-512 | 17600 |
+| sha3224 | 17300 |
+| sha3256 | 17400 |
+| sha3384 | 17500 |
+| sha3512 | 17600 |
 | | |
 | **`Keccak`** | |
-| keccak-224 | 17700 |
-| keccak-256 | 17800 |
-| keccak-384 | 17900 |
-| keccak-512 | 18000 |
+| keccak224 | 17700 |
+| keccak256 | 17800 |
+| keccak384 | 17900 |
+| keccak512 | 18000 |
 | | |
 | **`BLAKE2`** | |
-| blake2s-256 | |
-| 31000 | (hashcat compatible BLAKE2s-256) |
-| 33300 | (hashcat compatible HMAC-BLAKE2s key = $pass) |
-| blake2b-256 | |
-| 34800 | (hashcat compatible BLAKE2b-256) |
-| blake2b-384 | |
-| blake2b-512 | |
-| 600 | (hashcat compatible BLAKE2b-512) |
-| 610 | (hashcat compatible BLAKE2b-512 pass.salt) |
-| 620 | (hashcat compatible BLAKE2b-512 salt.pass) |
-| 34810 | (hashcat compatible BLAKE2b-256 pass.salt) |
-| 34820 | (hashcat compatible BLAKE2b-256 salt.pass) |
+| blake2s256 | |
+| 31000 | (BLAKE2s-256 $BLAKE2$ format) |
+| hmacblake2spass | 33300 |
+| blake2b256 | |
+| 34800 | (BLAKE2b-256 $BLAKE2$ format) |
+| blake2b256passsalt | 34810 |
+| blake2b256saltpass | 34820 |
+| blake2b384 | |
+| blake2b512 | |
+| 600 | (BLAKE2b-512 $BLAKE2$ format) |
+| blake2b512passsalt | 610 |
+| blake2b512saltpass | 620 |
 | | |
 | **`Other Hashes`** | |
 | ntlm | 1000 (Windows NT) |
 | mysql4/mysql5 | 300 |
-| ripemd-160 | 6000 |
-| 6050 | (hashcat compatible HMAC-RIPEMD160 key = $pass) |
-| 6060 | (hashcat compatible HMAC-RIPEMD160 key = $salt) |
+| ripemd160 | 6000 |
+| hmacripemd160pass | 6050 |
+| hmacripemd160salt | 6060 |
 | | |
 | **`Streebog / GOST R 34.11-2012`** | |
-| streebog-256 | 11700 |
-| 11750 | (HMAC-Streebog-256 key = $pass) |
-| 11760 | (HMAC-Streebog-256 key = $salt) |
-| streebog-512 | 11800 |
-| 11850 | (HMAC-Streebog-512 key = $pass) |
-| 11860 | (HMAC-Streebog-512 key = $salt) |
+| streebog256 | 11700 |
+| hmacstreebog256pass | 11750 |
+| hmacstreebog256salt | 11760 |
+| streebog512 | 11800 |
+| hmacstreebog512pass | 11850 |
+| hmacstreebog512salt | 11860 |
 | | |
 | **`Crypt / KDF`** | |
 | argon2id | 34000 |
@@ -205,32 +201,31 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | bcryptsha1 | 25800 |
 | bcryptsha512 | 28400 |
 | bcryptsha256 | 30600 |
-| wpbcrypt | 35500 (`WordPress bcrypt-HMAC-SHA384`) |
-| md5crypt | 500 (`Linux shadow $1$`) |
-| sha1crypt | 15100 (`NetBSD/Juniper SHA1 crypt`) |
-| sha256crypt | 7400 (`Linux shadow $5$`) |
-| sha512crypt | 1800 (`Linux shadow $6$`) |
-| sm3crypt | 35100 (`Unix $sm3$`) |
-| cmiyc | (`KoreLogic CMIYC 2026 contest algo`) |
-| phpass | 400 (`PHP/WordPress $P$/phpBB3 $H$`) |
-| gost-yescrypt | (`Linux shadow $gy$`) |
-| yescrypt | (`Linux shadow $y$`) |
+| wpbcrypt | 35500 (WordPress bcrypt-HMAC-SHA384) |
+| md5crypt | 500 (Linux shadow $1$) |
+| sha1crypt | 15100 (NetBSD/Juniper SHA1 crypt) |
+| sha256crypt | 7400 (Linux shadow $5$) |
+| sha512crypt | 1800 (Linux shadow $6$) |
+| sm3crypt | 35100 (Unix $sm3$) |
+| phpass/phpbb3 | 400 ($P$ / $H$) |
 | scrypt | 8900 |
-| 10900 | (hashcat compatible PBKDF2-HMAC-SHA256) |
-| 11900 | (hashcat compatible PBKDF2-HMAC-MD5) |
-| 12000 | (hashcat compatible PBKDF2-HMAC-SHA1) |
-| 12100 | (hashcat compatible PBKDF2-HMAC-SHA512) |
+| pbkdf2sha256 | 10900 |
+| pbkdf2md5 | 11900 |
+| pbkdf2sha1 | 12000 |
+| pbkdf2sha512 | 12100 |
+| yescrypt | (Linux shadow $y$) |
+| gostyescrypt | (Linux shadow $gy$) |
+| cmiyc | (KoreLogic CMIYC 2026 contest algorithm) |
 
 ### Benchmarks:
 - https://github.com/cyclone-github/hashgen-testing/tree/main/benchmarks
-- In addition to hashgen (go), I have also written hashgen in python, php, C, and Rust, although Rust and C need a lot of work to unlock their full performance potential. If you speak C or Rust, I'd be curious to see how fast you can push hashgen!
+- In addition to hashgen (Go), I have also written hashgen in Python, PHP, C, and Rust, although Rust and C need a lot of work to unlock their full performance potential. If you speak C or Rust, I'd be curious to see how fast you can push hashgen!
   - https://github.com/cyclone-github/hashgen-testing
 
 ### Compile from source:
 - This assumes you have Go and Git installed
   - `git clone https://github.com/cyclone-github/hashgen.git`  # clone repo
   - `cd hashgen`                                               # enter project directory
-  - `go mod init hashgen`                                      # initialize Go module (skips if go.mod exists)
   - `go mod tidy`                                              # download dependencies
   - `go build -ldflags="-s -w" .`                              # compile binary in current directory
   - `go install -ldflags="-s -w" .`                            # compile binary and install to $GOPATH
@@ -239,7 +234,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 
 ### Changelog:
 - https://github.com/cyclone-github/hashgen/blob/main/CHANGELOG.md
- 
+
 ### Mentions:
 - Go Package Documentation: https://pkg.go.dev/github.com/cyclone-github/hashgen
 - hashcat wiki: https://hashcat.net/wiki/
@@ -253,8 +248,8 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 - Uploading your compiled hashgen binaries to https://virustotal.com and leaving an upvote or a comment would be helpful.
 
 ### Thoughts:
-- Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on linux terminal. Several versions of hashgen have been written over the years in several languages: python, php, Go, C and Rust. While the actively maintained version is hashgen (go), which offers enhanced features and superior performance, the "hashgen-testing" repository linked below contains testing versions of hashgen in different programming languages:
+- Why write hashgen? hashgen is nothing new (to me) as this project started several years ago while needing a way to quickly convert wordlists to md5 or sha1 on a Linux terminal. Several versions of hashgen have been written over the years in several languages: Python, PHP, Go, C and Rust. While the actively maintained version is hashgen (Go), which offers enhanced features and superior performance, the "hashgen-testing" repository linked below contains testing versions of hashgen in different programming languages:
   - https://github.com/cyclone-github/hashgen-testing
 - Why write hashgen in Go instead of xyz language? I did this to push my Go coding skills while also seeing how fast I could push Go. During early testing, I was not expecting hashgen to be all that fast, but I have been pleasantly surprised!
-- When I realized hashgen (go) was competitively fast compared to other publicly available hash generators, I decided to publish hashgen's code and binaries for others to use. I've really enjoyed this project and I hope you find it useful.
+- When I realized hashgen (Go) was competitively fast compared to other publicly available hash generators, I decided to publish hashgen's code and binaries for others to use. I've really enjoyed this project and I hope you find it useful.
 - If you found hashgen to be helpful, please consider giving this repository a star!

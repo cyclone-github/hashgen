@@ -4,7 +4,7 @@ add mode: gost-yescrypt
 add mode: SSHA -m 111
 add mode: sha1crypt -m 15100
 add mode: sm3crypt -m 35100
-add mode: cmiyc (KoreLogic CMIYC 2026 contest algo)
+add mode: cmiyc (KoreLogic CMIYC 2026 contest algorithm)
 add modes: Streebog/GOST 2012 -m 11700, 11750, 11760, 11800, 11850, 11860
 add modes: SHA-384 UTF-16LE -m 10830, 10840, 10870
 add modes: LDAP SHA/SSHA -m 101, 1411, 1711
@@ -26,7 +26,7 @@ added scrypt mode: -m 8900
 added BLAKE2 modes: -m 600, 610, 620, 31000, 34800, 34810, 34820, 33300
 added hashcat UTF-16LE modes: -m 30, 40, 70, 130, 140, 170, 1430, 1440, 1470, 1730, 1740, 1770
 optimized salt RNG for fewer syscalls on salted hash modes
-added sanity check on invalid -m nth before opening stdin/wordlist
+added sanity check on invalid -m mode before opening stdin/wordlist
 compiled with Go v1.26.2
 ```
 ### v1.2.2; 2026-01-23
@@ -43,21 +43,21 @@ added mode: morsedecode (Morse Code decoder)
 addressed raw base-16 issue https://github.com/cyclone-github/hashgen/issues/8
 added feature: "keep-order" from https://github.com/cyclone-github/hashgen/issues/7
 added dynamic lines/sec from https://github.com/cyclone-github/hashgen/issues/11
-added modes: mysql5 (300), phpass (400), md5crypt (500), sha256crypt (7400), sha512crypt (1800), Wordpress bcrypt-HMAC-SHA384 (wpbcrypt)
+added modes: mysql5 (300), phpass (400), md5crypt (500), sha256crypt (7400), sha512crypt (1800), WordPress bcrypt-HMAC-SHA384 (wpbcrypt)
 added hashcat salted modes: -m 10, 20, 110, 120, 1410, 1420, 1310, 1320, 1710, 1720, 10810, 10820
 added hashcat modes: -m 2600, 4500
 added encoding modes: base32encode, base32decode
-cleaned up hashFunc aliases, algo typo, hex mode, hashBytes case switch, base64 and base58 decoders
+cleaned up hashFunc aliases, algorithm typo, hex mode, hashBytes case switch, base64 and base58 decoders
 fixed ntlm encoding issue
 added sanity check to not print blank / invalid hash lines (part of ntlm fix, but applies to all hash modes)
 converted checkForHex from string to byte
-updated yescrypt parameters to match debian 12 (libxcrypt) defaults
+updated yescrypt parameters to match Debian 12 (libxcrypt) defaults
 ```
 ### v1.1.4; 2025-08-23
 ```
 added modes: keccak-224, keccak-384, blake2b-256, blake2b-384, blake2b-512, blake2s-256
 added benchmark flag, -b (to benchmark current mode, disables output)
-compiled with Go v1.25.0 which gives a small performance boost to multiple algos
+compiled with Go v1.25.0 which gives a small performance boost to multiple algorithms
 added notes concerning some NTLM hashes not being crackable with certain hash cracking tools due to encoding gremlins
 ```
 ### v1.1.3; 2025-06-30
@@ -91,7 +91,7 @@ cleaned up code and print functions
 ```
 ### v2024-11-01.1630-threaded
 ```
-added thread flag "-t" to allow user to specity CPU threads, ex: -t 16 // fixed default to use max CPU threads
+added thread flag "-t" to allow user to specify CPU threads, ex: -t 16 // fixed default to use max CPU threads
 added modes: sha2-224, sha2-384, sha2-512-224, sha2-512-256, keccak-256, keccak-512
 ```
 ### v2024-08-24.2000-threaded
@@ -113,5 +113,5 @@ fixed stdin
 ### v2023-10-30.1600-threaded
 ```
 rewrote code base for multi-threading support
-some algos have not been implemented from previous version
+some algorithms have not been implemented from previous version
 ```
