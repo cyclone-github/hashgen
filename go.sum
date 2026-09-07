@@ -10,7 +10,7 @@ github.com/openwall/yescrypt-go v1.0.0 h1:jsGk48zkFvtUjGVOhYPGh+CS595JmTRcKnpggK
 github.com/openwall/yescrypt-go v1.0.0/go.mod h1:e6CWtFizUEOUttaOjeVMiv1lJaJie3mfOtLJ9CCD6sA=
 github.com/tarantool/go-gostcrypto v0.1.0 h1:sGjZil1nfXzxvBU4TOIZErTXcvCuCLH/pZnwfXr9uaY=
 github.com/tarantool/go-gostcrypto v0.1.0/go.mod h1:oieRliQHLNWjZ5qrpIamIFNHJ3j7dEvU4evBr6HeEFc=
-golang.org/x/crypto v0.55.0 h1:+KWHjbgOaAQ66dh/YlkZKHlz9ZUlq61AFirAR9ntP8M=
-golang.org/x/crypto v0.55.0/go.mod h1:uq0V9dE/fzQuJtbnL+2EhWOE63vo164FY8xqEnV9xis=
+golang.org/x/crypto v0.56.0 h1:GUh5Ii4J5jtcseSMiRqr1jXCNHoxjeV9Fmekc2oLy6Y=
+golang.org/x/crypto v0.56.0/go.mod h1:OMW5y6CY9l38uPLmxU6l6pwcXp1obtLo3e6gT7gQR2I=
 golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
 golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
