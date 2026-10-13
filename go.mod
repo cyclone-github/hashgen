@@ -9,7 +9,7 @@ require (
 	github.com/emmansun/gmsm v0.45.0
 	github.com/openwall/yescrypt-go v1.0.0
 	github.com/tarantool/go-gostcrypto v0.1.0
-	golang.org/x/crypto v0.57.0
+	golang.org/x/crypto v0.58.0
 )
 
-require golang.org/x/sys v0.48.0 // indirect
+require golang.org/x/sys v0.49.0 // indirect
