@@ -6,8 +6,8 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/cyclone-github/hashgen.svg)](https://pkg.go.dev/github.com/cyclone-github/hashgen)
 
 ### Install latest from source code:
-```
-go install github.com/cyclone-github/hashgen@main
+```bash
+go install -trimpath -ldflags="-s -w" github.com/cyclone-github/hashgen@main
 ```
 
 # hashgen - Cyclone's hash generator
@@ -133,6 +133,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | hmacsha256pass | 1450 |
 | hmacsha256salt | 1460 |
 | sha256utf16le | 1470 |
+| sha256d | 21400 |
 | 20800 | (sha256(md5($pass))) |
 | 35900 | (sha256(sha1($pass))) |
 | sha384 | 10800 |
@@ -150,6 +151,7 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | hmacsha512pass | 1750 |
 | hmacsha512salt | 1760 |
 | sha512utf16le | 1770 |
+| sha512d | 21000 |
 | sha512224 | |
 | sha512256 | |
 | | |
@@ -158,6 +160,8 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | sha3256 | 17400 |
 | sha3384 | 17500 |
 | sha3512 | 17600 |
+| shake128-256 | |
+| shake256-512 | |
 | | |
 | **`Keccak`** | |
 | keccak224 | 17700 |
@@ -181,8 +185,11 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
 | | |
 | **`Other Hashes`** | |
 | ntlm | 1000 (Windows NT) |
+| mysql323 | 200 |
 | mysql4/mysql5 | 300 |
 | ripemd160 | 6000 |
+| hash160 | (RIPEMD160(SHA256($pass))) |
+| sm3 | 31100 |
 | hmacripemd160pass | 6050 |
 | hmacripemd160salt | 6060 |
 | | |
@@ -223,12 +230,11 @@ To use hashgen, type your mode, wordlist input & hash output files with a simple
   - https://github.com/cyclone-github/hashgen-testing
 
 ### Compile from source:
-- This assumes you have Go and Git installed
+- This assumes you have Go 1.26.2+ and Git installed
   - `git clone https://github.com/cyclone-github/hashgen.git`  # clone repo
   - `cd hashgen`                                               # enter project directory
-  - `go mod tidy`                                              # download dependencies
-  - `go build -ldflags="-s -w" .`                              # compile binary in current directory
-  - `go install -ldflags="-s -w" .`                            # compile binary and install to $GOPATH
+  - `go build -trimpath -ldflags="-s -w" -o hashgen .`          # compile stripped binary in current directory
+  - `go install -trimpath -ldflags="-s -w" .`                   # compile and install to $GOBIN or $GOPATH/bin
 - Compile from source code how-to:
   - https://github.com/cyclone-github/scripts/blob/main/intro_to_go.txt
 

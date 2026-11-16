@@ -81,10 +81,16 @@ v1.3.2; 2026-08-18
 	refactor modes: -m 2600 and 4500
 	add bcrypt prehash modes: -m 25600, 25800, 28400, 30600
 	add hashcat alias: wpbcrypt -m 35500
+v1.3.3; 2026-11-16
+	add mode: SM3 -m 31100
+	add mode: MySQL323 -m 200
+	add mode: HASH160
+	add modes: SHA256d -m 21400, SHA512d -m 21000
+	add modes: SHAKE128-256, SHAKE256-512
 */
 
 func versionFunc() {
-	fmt.Fprintln(os.Stderr, "hashgen v1.3.2; 2026-08-18\nhttps://github.com/cyclone-github/hashgen")
+	fmt.Fprintln(os.Stderr, "hashgen v1.3.3; 2026-11-16\nhttps://github.com/cyclone-github/hashgen")
 }
 
 // help function
@@ -158,6 +164,7 @@ func helpFunc() {
 		"34400			(sha224(sha224($pass)))\n" +
 		"34500			(sha224(sha1($pass)))\n" +
 		"sha256			1400\n" +
+		"sha256d			21400 (SHA256(SHA256_bin($pass)))\n" +
 		"sha256passsalt		1410\n" +
 		"ssha256			1411 (LDAP {SSHA256})\n" +
 		"sha256saltpass		1420\n" +
@@ -175,6 +182,7 @@ func helpFunc() {
 		"sha384utf16saltpass	10840\n" +
 		"sha384utf16le		10870\n" +
 		"sha512			1700\n" +
+		"sha512d			21000 (SHA512(SHA512_bin($pass)))\n" +
 		"sha512passsalt		1710\n" +
 		"ssha512			1711 (LDAP {SSHA512})\n" +
 		"sha512saltpass		1720\n" +
@@ -190,6 +198,8 @@ func helpFunc() {
 		"sha3256			17400\n" +
 		"sha3384			17500\n" +
 		"sha3512			17600\n" +
+		"shake128-256		(SHAKE128, 256-bit output)\n" +
+		"shake256-512		(SHAKE256, 512-bit output)\n" +
 		"\n" +
 		"keccak224		17700\n" +
 		"keccak256		17800\n" +
@@ -210,8 +220,10 @@ func helpFunc() {
 		"blake2b512saltpass	620\n" +
 		"\n" +
 		"ntlm			1000 (Windows NT)\n" +
+		"mysql323		200 (legacy MySQL 3.23)\n" +
 		"mysql4/mysql5		300\n" +
 		"ripemd160		6000\n" +
+		"hash160			(RIPEMD160(SHA256_bin($pass)))\n" +
 		"hmacripemd160pass	6050\n" +
 		"hmacripemd160salt	6060\n" +
 		"\n" +
@@ -219,6 +231,7 @@ func helpFunc() {
 		"hmacstreebog256pass	11750\n" +
 		"hmacstreebog256salt	11760\n" +
 		"streebog512		11800\n" +
+		"sm3			31100\n" +
 		"hmacstreebog512pass	11850\n" +
 		"hmacstreebog512salt	11860\n" +
 		"\n" +
@@ -1940,6 +1953,12 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		h := sha256.Sum256(data)
 		return hex.EncodeToString(h[:]), true
 
+	// sha2-256d -m 21400
+	case "sha256d", "21400":
+		first := sha256.Sum256(data)
+		second := sha256.Sum256(first[:])
+		return hex.EncodeToString(second[:]), true
+
 	// -m 20800 sha256(md5($pass))
 	case "20800":
 		inner := md5HexBytes(data)
@@ -2049,6 +2068,12 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		h := sha512.Sum512(data)
 		return hex.EncodeToString(h[:]), true
 
+	// sha2-512d -m 21000
+	case "sha512d", "21000":
+		first := sha512.Sum512(data)
+		second := sha512.Sum512(first[:])
+		return hex.EncodeToString(second[:]), true
+
 	// -m 1710 sha512(pass.salt), -m 1720 sha512(salt.pass)
 	case "1710", "sha512passsalt", "1720", "sha512saltpass":
 		var saltBuf [16]byte
@@ -2145,6 +2170,22 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		h := sha3.New512()
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil)), true
+
+	// SHAKE128, 256-bit output
+	case "shake128-256":
+		h := sha3.NewShake128()
+		_, _ = h.Write(data)
+		var out [32]byte
+		_, _ = h.Read(out[:])
+		return hex.EncodeToString(out[:]), true
+
+	// SHAKE256, 512-bit output
+	case "shake256-512":
+		h := sha3.NewShake256()
+		_, _ = h.Write(data)
+		var out [64]byte
+		_, _ = h.Read(out[:])
+		return hex.EncodeToString(out[:]), true
 
 	// Keccak
 
@@ -2426,6 +2467,31 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 		h.Write(data)
 		return hex.EncodeToString(h.Sum(nil)), true
 
+	// hash160, RIPEMD160(SHA256(data))
+	case "hash160":
+		first := sha256.Sum256(data)
+		h := ripemd160.New()
+		_, _ = h.Write(first[:])
+		return hex.EncodeToString(h.Sum(nil)), true
+
+	// mysql3 -m 200
+	case "mysql323", "200":
+		var nr, nr2, add uint32 = 1345345333, 0x12345671, 7
+		for _, c := range data {
+			if c == ' ' || c == '\t' {
+				continue
+			}
+			nr ^= ((nr&63)+add)*uint32(c) + (nr << 8)
+			nr2 += (nr2 << 8) ^ nr
+			add += uint32(c)
+		}
+		var raw [8]byte
+		binary.BigEndian.PutUint32(raw[:4], nr&0x7fffffff)
+		binary.BigEndian.PutUint32(raw[4:], nr2&0x7fffffff)
+		var out [16]byte
+		hex.Encode(out[:], raw[:])
+		return string(out[:]), true
+
 	// mysql4/mysql5 -m 300
 	case "mysql4", "mysql5", "300":
 		first := sha1.Sum(data)
@@ -2566,6 +2632,12 @@ func hashBytesDispatch(hashFunc string, data []byte, cost int) (string, bool) {
 	// sm3crypt -m 35100
 	case "sm3crypt", "35100":
 		return sm3crypt(data, nil), true
+
+	// sm3 -m 31100
+	case "sm3", "31100":
+		h := sm3.New()
+		_, _ = h.Write(data)
+		return hex.EncodeToString(h.Sum(nil)), true
 
 	// CMIYC 2026
 	case "cmiyc":

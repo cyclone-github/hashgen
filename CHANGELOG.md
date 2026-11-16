@@ -1,3 +1,12 @@
+### v1.3.3; 2026-11-16
+```
+add mode: SM3 -m 31100
+add mode: MySQL323 -m 200
+add mode: HASH160
+add modes: SHA256d -m 21400, SHA512d -m 21000
+add modes: SHAKE128-256, SHAKE256-512
+```
+
 ### v1.3.2; 2026-08-18
 ```
 add mode: gost-yescrypt
